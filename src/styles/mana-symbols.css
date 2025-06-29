@@ -1,0 +1,43 @@
+/* Mana Symbol Styling for Deck Table */
+
+/* Ensure mana symbols display inline with proper sizing */
+.ms {
+  font-size: 1.2em;
+  vertical-align: middle;
+  margin: 0 1px;
+}
+
+/* Cost symbols should be slightly larger in the mana cost column */
+.ms.ms-cost {
+  font-size: 1.3em;
+}
+
+/* Shadow effect for better visibility on dark backgrounds */
+.ms.ms-shadow {
+  filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.8));
+}
+
+/* Container for mana costs to ensure proper alignment */
+.mana-cost-container {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/* Smaller symbols for oracle text */
+.oracle-text-mana .ms {
+  font-size: 1em;
+  margin: 0 2px;
+}
+
+/* Oracle text styling for proper line breaks */
+.oracle-text-mana {
+  line-height: 1.4;
+  padding: 4px 0;
+}
+
+/* Fix line height issues */
+.mana-symbols-wrapper {
+  line-height: 1;
+  display: inline-block;
+}

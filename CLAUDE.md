@@ -169,3 +169,12 @@ Environment variables use Vite's system with `VITE_` prefix:
 - `VITE_ENABLE_DEBUG` - Enable debug mode (true/false)
 
 Create a `.env.local` file for local development (git-ignored)
+
+## Accessing Screenshots from Windows
+
+When working with screenshots or files from Windows in this WSL2 environment:
+
+- Windows files are accessible through `/mnt/c/`
+- Example: `C:\Users\Rob\Pictures\Screenshots\file.png` becomes `/mnt/c/Users/Rob/Pictures/Screenshots/file.png`
+- Always use the `/mnt/c/` prefix when accessing Windows files
+- When the user asks you to check the latest screenshot, pull up the last screenshot by date from the Pictures\Screenshots folder and evaluate it
