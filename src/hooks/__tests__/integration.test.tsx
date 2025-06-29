@@ -136,6 +136,7 @@ describe('Moxfield Integration Tests', () => {
       console.log(`✅ Error handled correctly:`);
       console.log(`   Error message: ${result.current.error?.message}`);
       if (result.current.error && 'statusCode' in result.current.error) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         console.log(`   Status code: ${(result.current.error as any).statusCode}`);
       }
     });

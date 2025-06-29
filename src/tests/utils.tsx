@@ -5,6 +5,7 @@ import { render, type RenderOptions } from '@testing-library/react';
 /**
  * Creates a new QueryClient for testing with sensible defaults
  */
+// eslint-disable-next-line react-refresh/only-export-components
 export function createTestQueryClient() {
   return new QueryClient({
     defaultOptions: {
@@ -47,6 +48,7 @@ export function AllTheProviders({ children, queryClient }: AllTheProvidersProps)
 /**
  * Custom render function that includes all providers
  */
+// eslint-disable-next-line react-refresh/only-export-components
 export function renderWithProviders(
   ui: React.ReactElement,
   options?: Omit<RenderOptions, 'wrapper'> & { queryClient?: QueryClient }
@@ -62,5 +64,7 @@ export function renderWithProviders(
 }
 
 // Re-export everything from testing library
+// eslint-disable-next-line react-refresh/only-export-components
 export * from '@testing-library/react';
+// eslint-disable-next-line react-refresh/only-export-components
 export { renderWithProviders as render };

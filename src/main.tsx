@@ -17,7 +17,8 @@ const queryClient = new QueryClient({
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter basename={import.meta.env.BASE_URL}>
+      {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+      <BrowserRouter basename={(import.meta as any).env?.BASE_URL || '/'}>
         <App />
       </BrowserRouter>
     </QueryClientProvider>

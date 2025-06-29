@@ -415,6 +415,7 @@ export interface CardMigration {
   old_scryfall_id: string;
   new_scryfall_id?: string;
   note?: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   metadata?: Record<string, any>;
 }
 
@@ -430,7 +431,7 @@ export interface BulkData {
   description: string;
   download_uri: string;
   updated_at: string;
-  compressed_size: number;
+  size: number; // File size in bytes
   content_type: string;
   content_encoding: string;
 }
