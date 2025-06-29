@@ -47,9 +47,15 @@ export default function DeckTableWithImport() {
                 .map((card) => card.card?.name || '')
                 .filter(Boolean)
             : []),
+          ...(deck.boards?.commanders?.cards
+            ? Object.values(deck.boards.commanders.cards)
+                .map((card) => card.card?.name || '')
+                .filter(Boolean)
+            : []),
           // v2 API structure (fallback) - keys are card names
           ...(deck.mainboard ? Object.keys(deck.mainboard) : []),
           ...(deck.sideboard ? Object.keys(deck.sideboard) : []),
+          ...(deck.commanders ? Object.keys(deck.commanders) : []),
         ])
       )
     : [];
@@ -103,8 +109,9 @@ export default function DeckTableWithImport() {
     });
 
     // Process commander cards if present
-    if (deck.boards?.commanders?.cards) {
-      Object.entries(deck.boards.commanders.cards).forEach(([key, moxfieldCard]) => {
+    const commanderCards = deck.boards?.commanders?.cards || deck.commanders || {};
+    if (Object.keys(commanderCards).length > 0) {
+      Object.entries(commanderCards).forEach(([key, moxfieldCard]) => {
         const cardName = moxfieldCard.card?.name || key;
         const scryfallCard = scryfallData.data.find(c => c.name === cardName);
         
@@ -154,13 +161,12 @@ export default function DeckTableWithImport() {
                   placeholder="Paste Moxfield deck URL (e.g., https://www.moxfield.com/decks/...)"
                   value={deckUrl}
                   onChange={(e) => setDeckUrl(e.target.value)}
-                  className="flex-1 bg-gray-800 border-gray-600 text-white placeholder:text-gray-500 focus:border-gray-500"
+                  className="flex-1"
                   disabled={isLoading}
                 />
                 <Button 
                   type="submit" 
                   disabled={!deckUrl.trim() || isLoading}
-                  className="bg-blue-600 hover:bg-blue-700 text-white"
                 >
                   {isLoading ? (
                     <>
@@ -174,9 +180,8 @@ export default function DeckTableWithImport() {
                 {shouldFetch && (
                   <Button 
                     type="button" 
-                    variant="outline" 
+                    variant="secondary" 
                     onClick={handleReset}
-                    className="border-gray-600 text-gray-300 hover:bg-gray-800"
                   >
                     Clear
                   </Button>
@@ -186,9 +191,9 @@ export default function DeckTableWithImport() {
 
             {/* Error Display */}
             {error && (
-              <Alert variant="destructive" className="mt-4 bg-red-900/20 border-red-800">
+              <Alert variant="destructive" className="mt-4">
                 <AlertCircle className="h-4 w-4" />
-                <AlertDescription className="text-red-300">
+                <AlertDescription>
                   Error: {error.message}
                 </AlertDescription>
               </Alert>
