@@ -20,6 +20,21 @@ export default defineConfig({
   server: {
     port: 5173,
     host: true,
+    proxy: {
+      '/api/moxfield': {
+        target: 'https://api.moxfield.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/moxfield/, ''),
+        headers: {
+          'User-Agent': 'Deckxport/1.0.0',
+        },
+      },
+      '/api/scryfall': {
+        target: 'https://api.scryfall.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/scryfall/, ''),
+      },
+    },
   },
   build: {
     outDir: 'dist',

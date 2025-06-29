@@ -55,22 +55,43 @@ describe('Moxfield + Scryfall Integration Tests', () => {
       expect(deckResult.current.data).toBeDefined();
       const deck = deckResult.current.data!;
       
+      // Handle both v2 and v3 API structures
+      const hasV3Structure = !!deck.boards?.mainboard;
+      const mainboardCards = hasV3Structure 
+        ? deck.boards!.mainboard!.cards 
+        : deck.mainboard || {};
+      const sideboardCards = hasV3Structure
+        ? (deck.boards!.sideboard?.cards || {})
+        : (deck.sideboard || {});
+      
       console.log(`✅ Successfully fetched deck: "${deck.name}" by ${deck.createdByUser?.userName || 'Unknown'}`);
       console.log(`   Format: ${deck.format}`);
-      console.log(`   Main deck cards: ${Object.keys(deck.mainboard).length} cards`);
-      console.log(`   Sideboard cards: ${Object.keys(deck.sideboard || {}).length} cards`);
+      console.log(`   Main deck cards: ${Object.keys(mainboardCards).length} cards`);
+      console.log(`   Sideboard cards: ${Object.keys(sideboardCards).length} cards`);
       
       // Step 2: Extract all unique card names from the deck
       const cardNames = new Set<string>();
       
       // Add mainboard cards
-      Object.entries(deck.mainboard).forEach(([cardName]) => {
-        cardNames.add(cardName);
-      });
+      if (hasV3Structure) {
+        Object.entries(mainboardCards).forEach(([cardId, card]) => {
+          const name = card.card?.name || cardId;
+          if (name) cardNames.add(name);
+        });
+      } else {
+        Object.entries(mainboardCards).forEach(([cardName]) => {
+          cardNames.add(cardName);
+        });
+      }
       
       // Add sideboard cards
-      if (deck.sideboard) {
-        Object.entries(deck.sideboard).forEach(([cardName]) => {
+      if (hasV3Structure) {
+        Object.entries(sideboardCards).forEach(([cardId, card]) => {
+          const name = card.card?.name || cardId;
+          if (name) cardNames.add(name);
+        });
+      } else {
+        Object.entries(sideboardCards).forEach(([cardName]) => {
           cardNames.add(cardName);
         });
       }
@@ -130,16 +151,34 @@ describe('Moxfield + Scryfall Integration Tests', () => {
       
       // Check mainboard cards
       let mainboardMatched = 0;
-      Object.entries(deck.mainboard).forEach(([cardName]) => {
-        const scryfallCard = scryfallCardMap.get(cardName.toLowerCase());
-        if (scryfallCard) {
-          mainboardMatched++;
-          // Verify the card data matches what we expect
-          expect(scryfallCard.name.toLowerCase()).toBe(cardName.toLowerCase());
-        }
-      });
+      const mainboardCardNames: string[] = [];
       
-      console.log(`   Mainboard: ${mainboardMatched}/${Object.keys(deck.mainboard).length} cards matched`);
+      if (hasV3Structure) {
+        Object.values(mainboardCards).forEach((card) => {
+          const cardName = card.card?.name;
+          if (cardName) {
+            mainboardCardNames.push(cardName);
+            const scryfallCard = scryfallCardMap.get(cardName.toLowerCase());
+            if (scryfallCard) {
+              mainboardMatched++;
+              // Verify the card data matches what we expect
+              expect(scryfallCard.name.toLowerCase()).toBe(cardName.toLowerCase());
+            }
+          }
+        });
+      } else {
+        Object.entries(mainboardCards).forEach(([cardName]) => {
+          mainboardCardNames.push(cardName);
+          const scryfallCard = scryfallCardMap.get(cardName.toLowerCase());
+          if (scryfallCard) {
+            mainboardMatched++;
+            // Verify the card data matches what we expect
+            expect(scryfallCard.name.toLowerCase()).toBe(cardName.toLowerCase());
+          }
+        });
+      }
+      
+      console.log(`   Mainboard: ${mainboardMatched}/${mainboardCardNames.length} cards matched`);
       
       // Check if we have image URIs for the cards
       const cardsWithImages = scryfallData.data.filter(card => card.image_uris || card.card_faces);
@@ -179,11 +218,31 @@ describe('Moxfield + Scryfall Integration Tests', () => {
 
       const deck = deckResult.current.data!;
       
+      // Handle both v2 and v3 API structures
+      const hasV3Structure = !!deck.boards?.mainboard;
+      const mainboardCards = hasV3Structure 
+        ? deck.boards!.mainboard!.cards 
+        : deck.mainboard || {};
+      const sideboardCards = hasV3Structure
+        ? (deck.boards!.sideboard?.cards || {})
+        : (deck.sideboard || {});
+      
       // Find cards with special characters
-      const allCardNames = [
-        ...Object.keys(deck.mainboard),
-        ...(deck.sideboard ? Object.keys(deck.sideboard) : [])
-      ];
+      const allCardNames: string[] = [];
+      
+      if (hasV3Structure) {
+        Object.values(mainboardCards).forEach((card) => {
+          const name = card.card?.name;
+          if (name) allCardNames.push(name);
+        });
+        Object.values(sideboardCards).forEach((card) => {
+          const name = card.card?.name;
+          if (name) allCardNames.push(name);
+        });
+      } else {
+        allCardNames.push(...Object.keys(mainboardCards));
+        allCardNames.push(...Object.keys(sideboardCards));
+      }
       
       const specialCharCards = allCardNames.filter(name => 
         /[^\w\s,'-]/.test(name) || // Non-standard characters
@@ -242,16 +301,37 @@ describe('Moxfield + Scryfall Integration Tests', () => {
       });
 
       const deck = deckResult.current.data!;
-      const mainboardCount = Object.values(deck.mainboard).reduce((sum, card) => sum + card.quantity, 0);
-      const sideboardCount = deck.sideboard ? Object.values(deck.sideboard).reduce((sum, card) => sum + card.quantity, 0) : 0;
+      
+      // Handle both v2 and v3 API structures
+      const hasV3Structure = !!deck.boards?.mainboard;
+      const mainboardCards = hasV3Structure 
+        ? deck.boards!.mainboard!.cards 
+        : deck.mainboard || {};
+      const sideboardCards = hasV3Structure
+        ? (deck.boards!.sideboard?.cards || {})
+        : (deck.sideboard || {});
+        
+      const mainboardCount = Object.values(mainboardCards).reduce((sum, card) => sum + card.quantity, 0);
+      const sideboardCount = Object.values(sideboardCards).reduce((sum, card) => sum + card.quantity, 0);
       const totalCards = mainboardCount + sideboardCount;
       console.log(`📊 Deck size: ${totalCards} total cards`);
       
       // Get unique cards
-      const uniqueCards = new Set<string>([
-        ...Object.keys(deck.mainboard),
-        ...(deck.sideboard ? Object.keys(deck.sideboard) : [])
-      ]);
+      const uniqueCards = new Set<string>();
+      
+      if (hasV3Structure) {
+        Object.values(mainboardCards).forEach((card) => {
+          const name = card.card?.name;
+          if (name) uniqueCards.add(name);
+        });
+        Object.values(sideboardCards).forEach((card) => {
+          const name = card.card?.name;
+          if (name) uniqueCards.add(name);
+        });
+      } else {
+        Object.keys(mainboardCards).forEach(name => uniqueCards.add(name));
+        Object.keys(sideboardCards).forEach(name => uniqueCards.add(name));
+      }
       
       const uniqueCardNames = Array.from(uniqueCards);
       console.log(`   Unique cards: ${uniqueCardNames.length}`);

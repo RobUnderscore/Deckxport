@@ -1,14 +1,19 @@
 import { Routes, Route } from 'react-router-dom'
-import { Button } from '@/components/ui/button'
+import { DeckImporter } from '@/components/DeckImporter'
 
 function HomePage() {
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen p-8">
-      <h1 className="text-4xl font-bold mb-4">Welcome to Deckxport</h1>
-      <p className="text-xl text-muted-foreground mb-8">
-        Your ultimate MTG deck management tool
-      </p>
-      <Button size="lg">Get Started</Button>
+    <div className="container mx-auto py-8 px-4">
+      <div className="max-w-6xl mx-auto space-y-8">
+        <div className="text-center space-y-2">
+          <h1 className="text-4xl font-bold">Deckxport</h1>
+          <p className="text-xl text-muted-foreground">
+            Import your Moxfield deck and view all cards
+          </p>
+        </div>
+        
+        <DeckImporter />
+      </div>
     </div>
   )
 }

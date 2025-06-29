@@ -3,6 +3,13 @@
  */
 
 import type { MoxfieldDeck, MoxfieldError } from '@/types/moxfield';
+import { fetchMoxfieldDeckMock } from './moxfield-mock';
+
+// Moxfield API - using api2 subdomain with v3 endpoint
+const MOXFIELD_API_BASE = 'https://api2.moxfield.com';
+// Using CORS proxy to bypass CORS restrictions
+const CORS_PROXY = 'https://corsproxy.io/?url=';
+const USE_MOCK = false; // Let's use the real API
 
 /**
  * Custom error class for Moxfield API errors
@@ -25,16 +32,20 @@ export class MoxfieldApiError extends Error {
  * @throws MoxfieldApiError on failure
  */
 export async function fetchMoxfieldDeck(deckId: string): Promise<MoxfieldDeck> {
-  const url = `https://api.moxfield.com/v2/decks/all/${deckId}`;
+  // Use mock in development due to Cloudflare blocking
+  if (USE_MOCK) {
+    console.warn('Using mock Moxfield data in development. Production will require a backend.');
+    return fetchMoxfieldDeckMock(deckId);
+  }
+  
+  const baseUrl = `${MOXFIELD_API_BASE}/v3/decks/all/${deckId}`;
+  // Use CORS proxy to bypass CORS restrictions
+  const url = `${CORS_PROXY}${baseUrl}`;
+  
+  console.log('Fetching from:', url);
   
   try {
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-        'User-Agent': 'Deckxport/1.0.0', // Moxfield may require a user agent
-      },
-    });
+    const response = await fetch(url);
 
     if (!response.ok) {
       let errorData: MoxfieldError | undefined;
@@ -79,16 +90,11 @@ export async function fetchUserDecks(
   pageSize: number = 20,
   page: number = 1
 ): Promise<MoxfieldUserDecksResponse> {
-  const url = `https://api.moxfield.com/v2/users/${username}/decks?pageSize=${pageSize}&pageNumber=${page}`;
+  const baseUrl = `${MOXFIELD_API_BASE}/v3/users/${username}/decks?pageSize=${pageSize}&pageNumber=${page}`;
+  const url = `${CORS_PROXY}${baseUrl}`;
   
   try {
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-        'User-Agent': 'Deckxport/1.0.0',
-      },
-    });
+    const response = await fetch(url);
 
     if (!response.ok) {
       let errorData: MoxfieldError | undefined;

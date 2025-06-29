@@ -51,13 +51,23 @@ describe('Moxfield Integration Tests', () => {
       // Verify we got deck data
       expect(result.current.data).toBeDefined();
       expect(result.current.data?.name).toBeTruthy();
-      expect(result.current.data?.mainboard).toBeDefined();
+      
+      // Handle both v2 and v3 API structures
+      const deck = result.current.data!;
+      const hasV3Structure = !!deck.boards?.mainboard;
+      const hasV2Structure = !!deck.mainboard;
+      expect(hasV3Structure || hasV2Structure).toBe(true);
+      
+      // Get mainboard cards for either structure
+      const mainboardCards = hasV3Structure 
+        ? deck.boards!.mainboard!.cards 
+        : deck.mainboard || {};
       
       // Log deck info
-      console.log(`✅ Successfully fetched deck: "${result.current.data?.name}"`);
-      console.log(`   Format: ${result.current.data?.format}`);
-      console.log(`   Created by: ${result.current.data?.createdByUser.userName}`);
-      console.log(`   Cards in mainboard: ${Object.keys(result.current.data?.mainboard || {}).length}`);
+      console.log(`✅ Successfully fetched deck: "${deck.name}"`);
+      console.log(`   Format: ${deck.format}`);
+      console.log(`   Created by: ${deck.createdByUser.userName}`);
+      console.log(`   Cards in mainboard: ${Object.keys(mainboardCards).length}`);
     });
 
     it('should fetch deck and extract cards', async () => {

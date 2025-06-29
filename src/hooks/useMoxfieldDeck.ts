@@ -122,32 +122,70 @@ export function useDeckCards(deck: MoxfieldDeck | undefined) {
 
   const cards: Array<{ card: MoxfieldCard; boardType: string; cardName: string }> = [];
 
-  // Process mainboard
-  if (deck.mainboard) {
-    Object.entries(deck.mainboard).forEach(([cardName, card]) => {
-      cards.push({ card, boardType: 'mainboard', cardName });
-    });
-  }
+  // Handle v3 API structure
+  if (deck.boards) {
+    // Process mainboard
+    if (deck.boards.mainboard?.cards) {
+      Object.entries(deck.boards.mainboard.cards).forEach(([cardId, card]) => {
+        // In v3, the key is card ID and name is in card.card.name
+        const cardName = card.card?.name || cardId;
+        cards.push({ card, boardType: 'mainboard', cardName });
+      });
+    }
 
-  // Process sideboard
-  if (deck.sideboard) {
-    Object.entries(deck.sideboard).forEach(([cardName, card]) => {
-      cards.push({ card, boardType: 'sideboard', cardName });
-    });
-  }
+    // Process sideboard
+    if (deck.boards.sideboard?.cards) {
+      Object.entries(deck.boards.sideboard.cards).forEach(([cardId, card]) => {
+        const cardName = card.card?.name || cardId;
+        cards.push({ card, boardType: 'sideboard', cardName });
+      });
+    }
 
-  // Process commanders
-  if (deck.commanders) {
-    Object.entries(deck.commanders).forEach(([cardName, card]) => {
-      cards.push({ card, boardType: 'commander', cardName });
-    });
-  }
+    // Process commanders
+    if (deck.boards.commanders?.cards) {
+      Object.entries(deck.boards.commanders.cards).forEach(([cardId, card]) => {
+        const cardName = card.card?.name || cardId;
+        cards.push({ card, boardType: 'commander', cardName });
+      });
+    }
 
-  // Process companion
-  if (deck.companion) {
-    Object.entries(deck.companion).forEach(([cardName, card]) => {
-      cards.push({ card, boardType: 'companion', cardName });
-    });
+    // Process companion
+    if (deck.boards.companion?.cards) {
+      Object.entries(deck.boards.companion.cards).forEach(([cardId, card]) => {
+        const cardName = card.card?.name || cardId;
+        cards.push({ card, boardType: 'companion', cardName });
+      });
+    }
+  } 
+  // Handle v2 API structure (fallback)
+  else {
+    // Process mainboard
+    if (deck.mainboard) {
+      Object.entries(deck.mainboard).forEach(([cardName, card]) => {
+        cards.push({ card, boardType: 'mainboard', cardName });
+      });
+    }
+
+    // Process sideboard
+    if (deck.sideboard) {
+      Object.entries(deck.sideboard).forEach(([cardName, card]) => {
+        cards.push({ card, boardType: 'sideboard', cardName });
+      });
+    }
+
+    // Process commanders
+    if (deck.commanders) {
+      Object.entries(deck.commanders).forEach(([cardName, card]) => {
+        cards.push({ card, boardType: 'commander', cardName });
+      });
+    }
+
+    // Process companion
+    if (deck.companion) {
+      Object.entries(deck.companion).forEach(([cardName, card]) => {
+        cards.push({ card, boardType: 'companion', cardName });
+      });
+    }
   }
 
   return cards;

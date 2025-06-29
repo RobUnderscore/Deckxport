@@ -207,8 +207,28 @@ export interface MoxfieldDeck {
   viewCount: number;
   commentCount: number;
   
-  // Cards data
-  mainboard: { [cardName: string]: MoxfieldCard };
+  // Cards data - v3 API structure
+  boards?: {
+    mainboard?: {
+      count: number;
+      cards: { [cardId: string]: MoxfieldCard };
+    };
+    sideboard?: {
+      count: number;
+      cards: { [cardId: string]: MoxfieldCard };
+    };
+    companion?: {
+      count: number;
+      cards: { [cardId: string]: MoxfieldCard };
+    };
+    commanders?: {
+      count: number;
+      cards: { [cardId: string]: MoxfieldCard };
+    };
+  };
+  
+  // Legacy v2 API structure (for backwards compatibility)
+  mainboard?: { [cardName: string]: MoxfieldCard };
   sideboard?: { [cardName: string]: MoxfieldCard };
   companion?: { [cardName: string]: MoxfieldCard };
   commanders?: { [cardName: string]: MoxfieldCard };

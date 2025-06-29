@@ -1,5 +1,6 @@
 import type { Card, BulkData, ListResponse, CardIdentifier as ScryfallCardIdentifier } from '@/types/scryfall';
 
+// Scryfall has proper CORS headers, no proxy needed
 const SCRYFALL_API_BASE = 'https://api.scryfall.com';
 const REQUEST_DELAY_MS = 100; // Scryfall recommends 50-100ms between requests
 const MAX_COLLECTION_SIZE = 75; // Maximum cards per collection request

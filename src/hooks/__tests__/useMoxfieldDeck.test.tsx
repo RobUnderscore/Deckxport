@@ -219,7 +219,7 @@ describe('Moxfield Hooks', () => {
   });
 
   describe('useDeckCards', () => {
-    it('should extract all cards from deck', () => {
+    it('should extract all cards from v2 deck structure', () => {
       const mockDeck: MoxfieldDeck = {
         id: 'test',
         publicId: 'test',
@@ -250,7 +250,57 @@ describe('Moxfield Hooks', () => {
 
       expect(cards).toHaveLength(4);
       expect(cards[0]).toEqual({
-        card: mockDeck.mainboard['Card 1'],
+        card: mockDeck.mainboard!['Card 1'],
+        boardType: 'mainboard',
+        cardName: 'Card 1',
+      });
+      expect(cards.find(c => c.boardType === 'commander')).toBeTruthy();
+      expect(cards.find(c => c.boardType === 'sideboard')).toBeTruthy();
+    });
+
+    it('should extract all cards from v3 deck structure', () => {
+      const mockDeck: MoxfieldDeck = {
+        id: 'test',
+        publicId: 'test',
+        publicUrl: 'test',
+        name: 'Test',
+        format: 'commander',
+        visibility: 'public',
+        createdByUser: { userName: 'test' },
+        createdAtUtc: '2024-01-01',
+        lastUpdatedAtUtc: '2024-01-01',
+        version: 1,
+        likeCount: 0,
+        viewCount: 0,
+        commentCount: 0,
+        boards: {
+          mainboard: {
+            count: 6,
+            cards: {
+              'Card 1': { quantity: 4, boardType: 'mainboard', finish: 'nonfoil' },
+              'Card 2': { quantity: 2, boardType: 'mainboard', finish: 'foil' },
+            }
+          },
+          sideboard: {
+            count: 1,
+            cards: {
+              'Card 3': { quantity: 1, boardType: 'sideboard', finish: 'nonfoil' },
+            }
+          },
+          commanders: {
+            count: 1,
+            cards: {
+              'Commander': { quantity: 1, boardType: 'commander', finish: 'foil' },
+            }
+          }
+        },
+      };
+
+      const cards = useDeckCards(mockDeck);
+
+      expect(cards).toHaveLength(4);
+      expect(cards[0]).toEqual({
+        card: mockDeck.boards!.mainboard!.cards['Card 1'],
         boardType: 'mainboard',
         cardName: 'Card 1',
       });
