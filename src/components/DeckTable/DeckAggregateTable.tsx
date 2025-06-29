@@ -478,16 +478,24 @@ export function DeckAggregateTable({ cards, deckName = "Deck" }: DeckAggregateTa
   const deckStats = useMemo(() => {
     const mainboardCards = cards.filter(c => c.board === "mainboard");
     const sideboardCards = cards.filter(c => c.board === "sideboard");
+    const commanderCards = cards.filter(c => c.board === "commander");
+    const companionCards = cards.filter(c => c.board === "companion");
     
-    const totalCards = mainboardCards.reduce((sum, card) => sum + card.quantity, 0);
+    const totalMainboard = mainboardCards.reduce((sum, card) => sum + card.quantity, 0);
+    const totalCommanders = commanderCards.reduce((sum, card) => sum + card.quantity, 0);
+    const totalCompanions = companionCards.reduce((sum, card) => sum + card.quantity, 0);
+    const totalCards = totalMainboard + totalCommanders + totalCompanions;
     const totalSideboard = sideboardCards.reduce((sum, card) => sum + card.quantity, 0);
     
     const totalCost = cards.reduce((sum, card) => 
       sum + (parseFloat(card.prices?.usd || "0") * card.quantity), 0
     );
     
-    const avgCmc = mainboardCards.length > 0 
-      ? mainboardCards.reduce((sum, card) => sum + (card.cmc * card.quantity), 0) / totalCards
+    // Calculate average CMC across mainboard + commanders
+    const mainAndCommanderCards = [...mainboardCards, ...commanderCards];
+    const totalMainAndCommander = totalMainboard + totalCommanders;
+    const avgCmc = mainAndCommanderCards.length > 0 && totalMainAndCommander > 0
+      ? mainAndCommanderCards.reduce((sum, card) => sum + (card.cmc * card.quantity), 0) / totalMainAndCommander
       : 0;
 
     const withTags = cards.filter(c => c.oracleTags.length > 0).length;
@@ -496,7 +504,9 @@ export function DeckAggregateTable({ cards, deckName = "Deck" }: DeckAggregateTa
     return {
       totalCards,
       totalSideboard,
-      uniqueCards: mainboardCards.length,
+      totalCommanders,
+      totalCompanions,
+      uniqueCards: cards.filter(c => c.board !== "sideboard").length,
       totalCost,
       avgCmc,
       withTags,
@@ -629,6 +639,18 @@ export function DeckAggregateTable({ cards, deckName = "Deck" }: DeckAggregateTa
           <div className="text-xs text-muted-foreground">Total Cards</div>
           <div className="text-xl font-bold">{deckStats.totalCards}</div>
         </div>
+        {deckStats.totalCommanders > 0 && (
+          <div className="bg-muted/50 p-3 rounded-lg">
+            <div className="text-xs text-muted-foreground">Commanders</div>
+            <div className="text-xl font-bold">{deckStats.totalCommanders}</div>
+          </div>
+        )}
+        {deckStats.totalCompanions > 0 && (
+          <div className="bg-muted/50 p-3 rounded-lg">
+            <div className="text-xs text-muted-foreground">Companions</div>
+            <div className="text-xl font-bold">{deckStats.totalCompanions}</div>
+          </div>
+        )}
         <div className="bg-muted/50 p-3 rounded-lg">
           <div className="text-xs text-muted-foreground">Sideboard</div>
           <div className="text-xl font-bold">{deckStats.totalSideboard}</div>

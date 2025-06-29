@@ -160,15 +160,21 @@ export interface TaggerTag {
   category: boolean | string;  // Can be false or a category name
   namespace?: string;
   type?: 'ORACLE_CARD_TAG' | 'ILLUSTRATION_TAG' | string;
+  status?: string;
+  ancestorTags?: TaggerTag[];
+}
+
+export interface Tagging {
+  tag: TaggerTag;
+  status?: string;
+  type?: string;
+  weight?: string;
 }
 
 export interface TaggerCard {
   name: string;
   oracleId: string;
-  taggings: Array<{
-    tag: TaggerTag;
-    ancestorTags?: TaggerTag[];
-  }>;
+  taggings: Tagging[];
 }
 
 export interface TaggerResponse {
@@ -296,17 +302,49 @@ export async function fetchCardTags(
 }
 
 /**
+ * Check if a tag and all its ancestors have GOOD_STANDING status
+ * @param tag - The tag to check
+ * @returns true if the tag and all ancestors have GOOD_STANDING status
+ */
+function hasGoodStandingStatus(tag: TaggerTag): boolean {
+  // Check the tag itself
+  if (tag.status && tag.status !== 'GOOD_STANDING') {
+    return false;
+  }
+  
+  // Check all ancestor tags recursively
+  if (tag.ancestorTags) {
+    return tag.ancestorTags.every(ancestor => hasGoodStandingStatus(ancestor));
+  }
+  
+  return true;
+}
+
+/**
  * Extract oracle (functional) tags from a card's taggings
+ * Only includes tags where both the tagging and the tag (including all ancestors) have GOOD_STANDING status
  * @param card - The card data from the Tagger API
  * @returns Array of oracle tag names
  */
 export function extractOracleTags(card: TaggerCard): string[] {
   return card.taggings
-    .filter(tagging => 
-      // Oracle tags are identified by type ORACLE_CARD_TAG or namespace 'card'
-      tagging.tag.type === 'ORACLE_CARD_TAG' || 
-      tagging.tag.namespace === 'card'
-    )
+    .filter(tagging => {
+      // Check if the tagging itself has GOOD_STANDING status
+      if (tagging.status && tagging.status !== 'GOOD_STANDING') {
+        return false;
+      }
+      
+      // Check if this is an oracle tag
+      const isOracleTag = tagging.tag.type === 'ORACLE_CARD_TAG' || 
+                         tagging.tag.namespace === 'card';
+      
+      if (!isOracleTag) {
+        return false;
+      }
+      
+      // Check if the tag and all its ancestors have GOOD_STANDING status
+      return hasGoodStandingStatus(tagging.tag);
+    })
     .map(tagging => tagging.tag.name);
 }
 

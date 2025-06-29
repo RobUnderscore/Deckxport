@@ -28,12 +28,18 @@ interface DeckEvaluation {
 
 export function useDeckEvaluationAggregate(cards: CardAggregate[]): DeckEvaluation {
   return useMemo(() => {
-    // Filter mainboard cards only
+    // Filter cards by board
     const mainboardCards = cards.filter(card => card.board === "mainboard");
+    const commanderCards = cards.filter(card => card.board === "commander");
     
-    // Calculate basic metrics
-    const totalCards = mainboardCards.reduce((sum, card) => sum + card.quantity, 0);
-    const totalCMC = mainboardCards.reduce((sum, card) => sum + (card.cmc * card.quantity), 0);
+    // Calculate basic metrics (include commanders in the deck total)
+    const totalMainboard = mainboardCards.reduce((sum, card) => sum + card.quantity, 0);
+    const totalCommanders = commanderCards.reduce((sum, card) => sum + card.quantity, 0);
+    const totalCards = totalMainboard + totalCommanders;
+    
+    // Calculate average CMC for mainboard + commanders
+    const mainAndCommanderCards = [...mainboardCards, ...commanderCards];
+    const totalCMC = mainAndCommanderCards.reduce((sum, card) => sum + (card.cmc * card.quantity), 0);
     const averageCMC = totalCards > 0 ? totalCMC / totalCards : 0;
     
     // Count lands
