@@ -1,10 +1,10 @@
 import { Routes, Route } from 'react-router-dom';
-import DeckTableWithImport from '@/pages/DeckTableWithImport';
+import DeckAggregateImport from '@/pages/DeckAggregateImport';
 
 function App() {
   return (
     <Routes>
-      <Route path="/" element={<DeckTableWithImport />} />
+      <Route path="/" element={<DeckAggregateImport />} />
     </Routes>
   );
 }

@@ -37,3 +37,6 @@ coverage
 # Build files
 build
 *.tsbuildinfo
+
+# Vercel
+.vercel

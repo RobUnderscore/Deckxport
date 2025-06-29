@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient, UseQueryOptions } from '@tanstack/react-query';
+import * as React from 'react';
 import type { Card, BulkData, CollectionResponse } from '@/types/scryfall';
 import type { CardIdentifier } from '@/services/scryfall';
 import {
@@ -19,6 +20,10 @@ import {
   saveBulkMetadata,
   getBulkMetadata,
 } from '@/utils/indexeddb';
+import { 
+  enrichCardsWithOracleTags,
+  fetchOracleTagsForCardsWithTagger
+} from '@/services/oracleTags';
 
 // Query key factory
 export const scryfallKeys = {
@@ -120,12 +125,26 @@ export function useCard(cardId: string | undefined, options?: QueryOptions<Card>
   });
 }
 
-// Hook to fetch multiple cards with caching
+// Hook to fetch multiple cards with caching and oracle tags
 export function useCardCollection(
   identifiers: CardIdentifier[],
-  options?: QueryOptions<CollectionResponse> & { includeImages?: boolean }
+  options?: QueryOptions<CollectionResponse> & { 
+    includeImages?: boolean; 
+    includeOracleTags?: boolean;
+    fetchDynamicOracleTags?: boolean;
+    onOracleTagProgress?: (current: number, total: number) => void;
+    useOracleTagCache?: boolean;
+  }
 ) {
-  return useQuery({
+  const { 
+    includeOracleTags = true, 
+    fetchDynamicOracleTags = false,
+    onOracleTagProgress,
+    useOracleTagCache = true
+  } = options || {};
+  const queryClient = useQueryClient();
+  
+  const query = useQuery({
     queryKey: scryfallKeys.collection(identifiers),
     queryFn: async () => {
       // Try to get cards from cache first
@@ -160,15 +179,21 @@ export function useCardCollection(
         }
       }
 
+      // Enrich cached cards with oracle tags if enabled
+      let enrichedCachedCards = cachedCards;
+      if (includeOracleTags) {
+        enrichedCachedCards = enrichCardsWithOracleTags(cachedCards);
+      }
+
       // If all cards are cached, return them
       if (uncachedIdentifiers.length === 0) {
         return {
           object: 'list',
-          data: cachedCards,
+          data: enrichedCachedCards,
           not_found: [],
           has_more: false,
           next_page: undefined,
-          total_cards: cachedCards.length,
+          total_cards: enrichedCachedCards.length,
         } as CollectionResponse;
       }
 
@@ -180,21 +205,97 @@ export function useCardCollection(
         await cacheCards(response.data);
       }
 
+      // Enrich fetched cards with oracle tags if enabled
+      let enrichedFetchedCards = response.data;
+      if (includeOracleTags) {
+        enrichedFetchedCards = enrichCardsWithOracleTags(response.data);
+      }
+
       // Merge cached and fetched cards
       return {
         ...response,
-        data: [...cachedCards, ...response.data],
-        total_cards: cachedCards.length + response.data.length,
+        data: [...enrichedCachedCards, ...enrichedFetchedCards],
+        total_cards: enrichedCachedCards.length + enrichedFetchedCards.length,
       };
     },
     enabled: identifiers.length > 0,
     staleTime: 24 * 60 * 60 * 1000, // 24 hours
     ...options,
   });
+  
+  // Track oracle tag errors
+  const [oracleTagError, setOracleTagError] = React.useState<string | null>(null);
+  // Track if we're fetching oracle tags to prevent duplicates
+  const [isFetchingOracleTags, setIsFetchingOracleTags] = React.useState(false);
+  const fetchedCardsRef = React.useRef<Set<string>>(new Set());
+
+  // Optionally fetch dynamic oracle tags after cards are loaded
+  React.useEffect(() => {
+    if (query.data && fetchDynamicOracleTags && !isFetchingOracleTags) {
+      const cards = query.data.data;
+      // Filter out cards we've already fetched tags for
+      const cardsToFetch = cards.filter(card => !fetchedCardsRef.current.has(card.id));
+      
+      if (cardsToFetch.length > 0) {
+        setIsFetchingOracleTags(true);
+        
+        // Mark these cards as being fetched
+        cardsToFetch.forEach(card => fetchedCardsRef.current.add(card.id));
+        // Use the Tagger API with full card data
+        fetchOracleTagsForCardsWithTagger(
+          cardsToFetch, 
+          onOracleTagProgress,
+          useOracleTagCache
+        ).then((result) => {
+          // Check for errors
+          if (result.hasErrors) {
+            setOracleTagError(result.errors.join(', '));
+          }
+          
+          // Update the query data with fetched oracle tags
+          queryClient.setQueryData(scryfallKeys.collection(identifiers), (oldData: CollectionResponse | undefined) => {
+            if (!oldData) return oldData;
+            
+            // Enrich cards with fetched tags
+            const enrichedData = oldData.data.map(card => {
+              const tags = result.tags.get(card.name);
+              if (tags && tags.length > 0 && !card.oracle_tags) {
+                return { ...card, oracle_tags: tags };
+              }
+              return card;
+            });
+            
+            return {
+              ...oldData,
+              data: enrichedData
+            };
+          });
+        }).catch(error => {
+          console.error('Failed to fetch oracle tags:', error);
+          setOracleTagError('Failed to fetch oracle tags');
+        }).finally(() => {
+          setIsFetchingOracleTags(false);
+        });
+      }
+    }
+  }, [query.data, fetchDynamicOracleTags, identifiers, queryClient, onOracleTagProgress, useOracleTagCache, isFetchingOracleTags]);
+  
+  return {
+    ...query,
+    oracleTagError
+  };
 }
 
 // Hook to fetch cards by names
-export function useCardsByNames(cardNames: string[], options?: QueryOptions<CollectionResponse>) {
+export function useCardsByNames(
+  cardNames: string[], 
+  options?: QueryOptions<CollectionResponse> & { 
+    includeOracleTags?: boolean;
+    fetchDynamicOracleTags?: boolean;
+    onOracleTagProgress?: (current: number, total: number) => void;
+    useOracleTagCache?: boolean;
+  }
+) {
   const identifiers = cardNamesToIdentifiers(cardNames);
   return useCardCollection(identifiers, options);
 }

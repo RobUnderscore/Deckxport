@@ -1,0 +1,13 @@
+{
+  "functions": {
+    "api/tagger-proxy.js": {
+      "maxDuration": 10
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/api/tagger-proxy",
+      "destination": "/api/tagger-proxy"
+    }
+  ]
+}

@@ -310,6 +310,11 @@ export interface Card {
   // Multi-face fields
   card_faces?: CardFace[];
   all_parts?: RelatedCard[];
+  
+  // Oracle tags (from Scryfall Tagger project)
+  // Note: These are not included in standard API responses
+  // but can be fetched via search queries
+  oracle_tags?: string[];
 }
 
 /**
