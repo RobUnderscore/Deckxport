@@ -1,7 +1,7 @@
 # Claude Code Instructions for Deckxport
 
 ## Project Overview
-Deckxport is a React-based web application for importing and managing Magic: The Gathering decks from various sources like Moxfield and Scryfall. Built with TypeScript for type safety and modern React patterns.
+Deckxport is a React-based web application for importing and analyzing Magic: The Gathering decks from Moxfield. It enriches deck data with information from Scryfall and oracle tags from Scryfall Tagger, providing comprehensive deck analysis and evaluation tools. Built with TypeScript for type safety and modern React patterns.
 
 ## Code Standards
 
@@ -74,7 +74,8 @@ src/
 │   ├── ui/          # shadcn/ui reusable components
 │   └── __tests__/   # Component tests
 ├── hooks/           # Custom React hooks
-├── services/        # API services (Moxfield, Scryfall integration)
+├── services/        # API services (Moxfield, Scryfall, Tagger)
+│   └── evaluation/  # Deck evaluation logic
 ├── types/           # TypeScript type definitions
 ├── utils/           # Utility functions and helpers
 ├── lib/             # Core utilities (cn, utils)
@@ -168,7 +169,34 @@ Environment variables use Vite's system with `VITE_` prefix:
 - `VITE_ENABLE_ANALYTICS` - Enable/disable analytics (true/false)
 - `VITE_ENABLE_DEBUG` - Enable debug mode (true/false)
 
+For Vercel deployment (serverless functions):
+- `TAGGER_CSRF_TOKEN` - CSRF token for Scryfall Tagger API
+- `TAGGER_SESSION_COOKIE` - Session cookie for Scryfall Tagger API
+
 Create a `.env.local` file for local development (git-ignored)
+
+## Key Features
+
+### Data Flow
+1. **Moxfield Import**: Fetch deck data from Moxfield API via CORS proxy
+2. **Scryfall Enrichment**: Add card images, prices, and detailed data
+3. **Oracle Tags**: Fetch functional tags from Scryfall Tagger (rate-limited to 250ms/request)
+4. **Unified Aggregate**: All data combined into `CardAggregate` type
+
+### Table Preferences
+- Column visibility and sorting preferences are automatically saved to localStorage
+- Preferences persist across browser sessions
+- Quick presets: "Show All", "Show Minimal", "Reset to Defaults"
+
+### Deck Evaluation
+- Commander deck analysis with oracle tag support
+- Categories: Ramp, Card Draw, Interaction, Win Conditions, etc.
+- Automatic suggestions based on deck composition
+
+### API Proxies
+- **Development**: Vite proxy configuration handles CORS
+- **Production**: Vercel serverless functions for Tagger API
+- **Moxfield**: Uses corsproxy.io for CORS bypass
 
 ## Accessing Screenshots from Windows
 

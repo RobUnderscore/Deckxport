@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import {
   ColumnDef,
   flexRender,
@@ -23,6 +23,8 @@ import {
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,10 +35,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ChevronDown, Download, Settings2, ArrowUpDown, ArrowUp, ArrowDown, Tag } from "lucide-react";
+import { ChevronDown, Download, Settings2, ArrowUpDown, ArrowUp, ArrowDown, Tag, RotateCcw } from "lucide-react";
 import type { CardAggregate } from "@/types/cardAggregate";
 import { ManaSymbols } from "@/utils/manaSymbols";
 import { CSVExportDialog } from "./CSVExportAggregateDialog";
+import { 
+  loadColumnVisibility, 
+  saveColumnVisibility, 
+  loadSorting, 
+  saveSorting 
+} from "@/utils/tablePreferences";
 
 interface DeckAggregateTableProps {
   cards: CardAggregate[];
@@ -70,34 +78,73 @@ function SortableHeader({ column, children }: {
 }
 
 export function DeckAggregateTable({ cards, deckName = "Deck" }: DeckAggregateTableProps) {
-  const [sorting, setSorting] = useState<SortingState>([]);
+  // Load saved preferences or use defaults
+  const [sorting, setSorting] = useState<SortingState>(() => {
+    return loadSorting() || [];
+  });
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
   const [showCSVDialog, setShowCSVDialog] = useState(false);
-  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({
-    // Show by default - essential deck building info
-    board: true,
-    typeLine: true,
-    manaCost: true,
-    cmc: true,
-    rarity: true,
-    pricesUsd: true,
-    oracleTags: true,
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>(() => {
+    const saved = loadColumnVisibility();
+    if (saved) return saved;
     
-    // Hide by default - additional details
-    oracleText: false,
-    flavorText: false,
-    setName: false,
-    collectorNumber: false,
-    power: false,
-    toughness: false,
-    loyalty: false,
-    colors: false,
-    artist: false,
-    pricesUsdFoil: false,
-    legalities: false,
-    releasedAt: false,
+    // Default visibility
+    return {
+      // Show by default - essential deck building info
+      board: true,
+      typeLine: true,
+      manaCost: true,
+      cmc: true,
+      rarity: true,
+      pricesUsd: true,
+      oracleTags: true,
+      
+      // Hide by default - additional details
+      oracleText: false,
+      flavorText: false,
+      setName: false,
+      collectorNumber: false,
+      power: false,
+      toughness: false,
+      loyalty: false,
+      colors: false,
+      artist: false,
+      pricesUsdFoil: false,
+      legalities: false,
+      releasedAt: false,
+    };
   });
+
+  // Use refs to track if we should save (avoid saving on initial load)
+  const hasInteracted = useRef(false);
+
+  // Save column visibility when it changes (with debounce)
+  useEffect(() => {
+    if (!hasInteracted.current) return;
+    
+    const timeoutId = setTimeout(() => {
+      saveColumnVisibility(columnVisibility);
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
+  }, [columnVisibility]);
+
+  // Save sorting when it changes
+  useEffect(() => {
+    if (!hasInteracted.current) return;
+    
+    const timeoutId = setTimeout(() => {
+      saveSorting(sorting);
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
+  }, [sorting]);
+
+  // Mark as interacted after initial render
+  useEffect(() => {
+    hasInteracted.current = true;
+  }, []);
 
   const columns: ColumnDef<CardAggregate>[] = useMemo(() => [
     {
@@ -486,20 +533,91 @@ export function DeckAggregateTable({ cards, deckName = "Deck" }: DeckAggregateTa
                 <ChevronDown className="ml-2 h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              {table
-                .getAllColumns()
-                .filter((column) => column.getCanHide())
-                .map((column) => (
-                  <DropdownMenuCheckboxItem
-                    key={column.id}
-                    className="capitalize text-sm"
-                    checked={column.getIsVisible()}
-                    onCheckedChange={(value) => column.toggleVisibility(!!value)}
-                  >
-                    {column.id.replace(/_/g, " ")}
-                  </DropdownMenuCheckboxItem>
-                ))}
+            <DropdownMenuContent align="end" className="w-56">
+              <div className="px-2 py-1.5 text-sm font-semibold">Column Visibility</div>
+              <DropdownMenuSeparator />
+              <div className="max-h-96 overflow-y-auto">
+                {table
+                  .getAllColumns()
+                  .filter((column) => column.getCanHide())
+                  .map((column) => (
+                    <DropdownMenuCheckboxItem
+                      key={column.id}
+                      className="capitalize text-sm"
+                      checked={column.getIsVisible()}
+                      onCheckedChange={(value) => column.toggleVisibility(!!value)}
+                    >
+                      {column.id.replace(/_/g, " ")}
+                    </DropdownMenuCheckboxItem>
+                  ))}
+              </div>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => {
+                  // Show all columns
+                  const allVisible: VisibilityState = {};
+                  table.getAllColumns().forEach(column => {
+                    if (column.getCanHide()) {
+                      allVisible[column.id] = true;
+                    }
+                  });
+                  setColumnVisibility(allVisible);
+                }}
+              >
+                Show All
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => {
+                  // Hide optional columns
+                  const minimalVisible: VisibilityState = {
+                    board: true,
+                    typeLine: true,
+                    manaCost: true,
+                    cmc: true,
+                    rarity: true,
+                    pricesUsd: true,
+                  };
+                  setColumnVisibility(minimalVisible);
+                }}
+              >
+                Show Minimal
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => {
+                  // Reset to default visibility
+                  const defaultVisibility: VisibilityState = {
+                    board: true,
+                    typeLine: true,
+                    manaCost: true,
+                    cmc: true,
+                    rarity: true,
+                    pricesUsd: true,
+                    oracleTags: true,
+                    oracleText: false,
+                    flavorText: false,
+                    setName: false,
+                    collectorNumber: false,
+                    power: false,
+                    toughness: false,
+                    loyalty: false,
+                    colors: false,
+                    artist: false,
+                    pricesUsdFoil: false,
+                    legalities: false,
+                    releasedAt: false,
+                  };
+                  setColumnVisibility(defaultVisibility);
+                  // Also reset sorting
+                  setSorting([]);
+                }}
+              >
+                <RotateCcw className="mr-2 h-4 w-4" />
+                Reset to Defaults
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                Your preferences are saved automatically
+              </div>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
