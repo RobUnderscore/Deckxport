@@ -38,11 +38,7 @@ interface AllTheProvidersProps {
 export function AllTheProviders({ children, queryClient }: AllTheProvidersProps) {
   const testQueryClient = queryClient || createTestQueryClient();
 
-  return (
-    <QueryClientProvider client={testQueryClient}>
-      {children}
-    </QueryClientProvider>
-  );
+  return <QueryClientProvider client={testQueryClient}>{children}</QueryClientProvider>;
 }
 
 /**

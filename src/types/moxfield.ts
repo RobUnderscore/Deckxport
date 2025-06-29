@@ -13,7 +13,18 @@ export type CardCondition = 'NM' | 'LP' | 'MP' | 'HP' | 'D' | 'PL';
 /**
  * Card language codes
  */
-export type CardLanguage = 'en' | 'ja' | 'de' | 'fr' | 'it' | 'es' | 'pt' | 'ru' | 'ko' | 'zhs' | 'zht';
+export type CardLanguage =
+  | 'en'
+  | 'ja'
+  | 'de'
+  | 'fr'
+  | 'it'
+  | 'es'
+  | 'pt'
+  | 'ru'
+  | 'ko'
+  | 'zhs'
+  | 'zht';
 
 /**
  * Deck visibility settings
@@ -23,7 +34,7 @@ export type DeckVisibility = 'public' | 'private' | 'unlisted';
 /**
  * Deck format types
  */
-export type DeckFormat = 
+export type DeckFormat =
   | 'standard'
   | 'modern'
   | 'legacy'
@@ -47,8 +58,15 @@ export type DeckFormat =
 export interface MoxfieldCard {
   // Card identification
   quantity: number;
-  boardType: 'mainboard' | 'sideboard' | 'companion' | 'commander' | 'partner' | 'signature' | 'sticker';
-  
+  boardType:
+    | 'mainboard'
+    | 'sideboard'
+    | 'companion'
+    | 'commander'
+    | 'partner'
+    | 'signature'
+    | 'sticker';
+
   // Physical card attributes
   finish: 'nonfoil' | 'foil' | 'etched';
   isFoil?: boolean; // Legacy field, use finish instead
@@ -56,21 +74,21 @@ export interface MoxfieldCard {
   isProxy?: boolean;
   condition?: CardCondition;
   language?: CardLanguage;
-  
+
   // Set and printing info
   set?: string; // Set code
   setName?: string;
   collectorNumber?: string;
-  
+
   // User customization
   tags?: string[];
   notes?: string;
-  
+
   // Price tracking
   purchasePrice?: number;
   purchaseCurrency?: string;
   purchaseDate?: string;
-  
+
   // Card details (populated from Scryfall)
   card?: MoxfieldCardData;
 }
@@ -114,12 +132,12 @@ export interface DeckStats {
   sideboardCount: number;
   companionCount?: number;
   commanderCount?: number;
-  
+
   // Mana curve
   manaCurve: {
     [key: string]: number; // "0": 5, "1": 10, etc.
   };
-  
+
   // Color breakdown
   colorBreakdown: {
     white: number;
@@ -130,7 +148,7 @@ export interface DeckStats {
     colorless: number;
     multicolor: number;
   };
-  
+
   // Type breakdown
   typeBreakdown: {
     creature: number;
@@ -142,7 +160,7 @@ export interface DeckStats {
     land: number;
     other: number;
   };
-  
+
   // Price information
   prices?: {
     total: number;
@@ -169,44 +187,44 @@ export interface MoxfieldDeck {
   id: string;
   publicId: string;
   publicUrl: string;
-  
+
   // Basic info
   name: string;
   description?: string;
   format: DeckFormat;
   visibility: DeckVisibility;
-  
+
   // Authorship
   createdByUser: {
     userName: string;
     displayName?: string;
     badges?: string[];
   };
-  
+
   // Timestamps
   createdAtUtc: string;
   lastUpdatedAtUtc: string;
   publishedAtUtc?: string;
-  
+
   // Version tracking
   version: number;
   previousVersions?: number[];
-  
+
   // Hub associations
   hubs?: DeckHub[];
-  
+
   // Affiliates
   affiliates?: {
     tcgPlayerId?: string;
     archidektId?: string;
     moxfieldId?: string;
   };
-  
+
   // Likes and views
   likeCount: number;
   viewCount: number;
   commentCount: number;
-  
+
   // Cards data - v3 API structure
   boards?: {
     mainboard?: {
@@ -226,22 +244,22 @@ export interface MoxfieldDeck {
       cards: { [cardId: string]: MoxfieldCard };
     };
   };
-  
+
   // Legacy v2 API structure (for backwards compatibility)
   mainboard?: { [cardName: string]: MoxfieldCard };
   sideboard?: { [cardName: string]: MoxfieldCard };
   companion?: { [cardName: string]: MoxfieldCard };
   commanders?: { [cardName: string]: MoxfieldCard };
-  
+
   // Computed stats
   stats?: DeckStats;
-  
+
   // Deck tokens
   tokens?: string[];
-  
+
   // Featured card for thumbnail
   featuredCard?: string;
-  
+
   // Tags
   tags?: string[];
 }

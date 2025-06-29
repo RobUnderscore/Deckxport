@@ -10,7 +10,7 @@ describe('Moxfield Integration Tests', () => {
   beforeAll(() => {
     queryClient = new QueryClient({
       defaultOptions: {
-        queries: { 
+        queries: {
           retry: 1,
           retryDelay: 100,
         },
@@ -32,7 +32,7 @@ describe('Moxfield Integration Tests', () => {
     it('should fetch a real Moxfield deck', async () => {
       const deckUrl = 'https://moxfield.com/decks/lkwkRXXSmkSd1W7VkOIjwQ';
       console.log(`📦 Testing deck URL: ${deckUrl}`);
-      
+
       const { result } = renderHook(
         // Using a public test deck URL
         () => useMoxfieldDeck(deckUrl),
@@ -51,18 +51,16 @@ describe('Moxfield Integration Tests', () => {
       // Verify we got deck data
       expect(result.current.data).toBeDefined();
       expect(result.current.data?.name).toBeTruthy();
-      
+
       // Handle both v2 and v3 API structures
       const deck = result.current.data!;
       const hasV3Structure = !!deck.boards?.mainboard;
       const hasV2Structure = !!deck.mainboard;
       expect(hasV3Structure || hasV2Structure).toBe(true);
-      
+
       // Get mainboard cards for either structure
-      const mainboardCards = hasV3Structure 
-        ? deck.boards!.mainboard!.cards 
-        : deck.mainboard || {};
-      
+      const mainboardCards = hasV3Structure ? deck.boards!.mainboard!.cards : deck.mainboard || {};
+
       // Log deck info
       console.log(`✅ Successfully fetched deck: "${deck.name}"`);
       console.log(`   Format: ${deck.format}`);
@@ -73,15 +71,12 @@ describe('Moxfield Integration Tests', () => {
     it('should fetch deck and extract cards', async () => {
       const deckId = 'lkwkRXXSmkSd1W7VkOIjwQ';
       console.log(`🎴 Testing card extraction for deck ID: ${deckId}`);
-      
-      const { result } = renderHook(
-        () => useMoxfieldDeckWithCards(deckId),
-        {
-          wrapper: ({ children }) => (
-            <AllTheProviders queryClient={queryClient}>{children}</AllTheProviders>
-          ),
-        }
-      );
+
+      const { result } = renderHook(() => useMoxfieldDeckWithCards(deckId), {
+        wrapper: ({ children }) => (
+          <AllTheProviders queryClient={queryClient}>{children}</AllTheProviders>
+        ),
+      });
 
       await waitFor(() => expect(result.current.isSuccess).toBe(true), {
         timeout: 10000,
@@ -90,33 +85,34 @@ describe('Moxfield Integration Tests', () => {
       // Verify we got cards
       expect(result.current.cards.length).toBeGreaterThan(0);
       expect(result.current.totalCards).toBeGreaterThan(0);
-      
+
       // Check card structure
       const firstCard = result.current.cards[0];
       expect(firstCard).toHaveProperty('card');
       expect(firstCard).toHaveProperty('boardType');
       expect(firstCard).toHaveProperty('cardName');
-      
+
       // Log card details
       console.log(`✅ Successfully extracted ${result.current.cards.length} unique cards`);
       console.log(`   Total card count (including quantities): ${result.current.totalCards}`);
-      
+
       // Sample some random cards
-      const randomCards = result.current.cards
-        .sort(() => Math.random() - 0.5)
-        .slice(0, 3);
-      
+      const randomCards = result.current.cards.sort(() => Math.random() - 0.5).slice(0, 3);
+
       console.log(`   Sample cards:`);
       randomCards.forEach(({ cardName, card, boardType }) => {
         console.log(`     - ${cardName} (x${card.quantity}) in ${boardType}`);
       });
-      
+
       // Show board distribution
-      const boardTypes = result.current.cards.reduce((acc, { boardType }) => {
-        acc[boardType] = (acc[boardType] || 0) + 1;
-        return acc;
-      }, {} as Record<string, number>);
-      
+      const boardTypes = result.current.cards.reduce(
+        (acc, { boardType }) => {
+          acc[boardType] = (acc[boardType] || 0) + 1;
+          return acc;
+        },
+        {} as Record<string, number>
+      );
+
       console.log(`   Board distribution:`);
       Object.entries(boardTypes).forEach(([board, count]) => {
         console.log(`     - ${board}: ${count} unique cards`);
@@ -126,15 +122,12 @@ describe('Moxfield Integration Tests', () => {
     it('should handle non-existent deck gracefully', async () => {
       const fakeDeckId = 'this-deck-definitely-does-not-exist-12345';
       console.log(`❌ Testing error handling with fake deck ID: ${fakeDeckId}`);
-      
-      const { result } = renderHook(
-        () => useMoxfieldDeck(fakeDeckId),
-        {
-          wrapper: ({ children }) => (
-            <AllTheProviders queryClient={queryClient}>{children}</AllTheProviders>
-          ),
-        }
-      );
+
+      const { result } = renderHook(() => useMoxfieldDeck(fakeDeckId), {
+        wrapper: ({ children }) => (
+          <AllTheProviders queryClient={queryClient}>{children}</AllTheProviders>
+        ),
+      });
 
       await waitFor(() => expect(result.current.isError).toBe(true), {
         timeout: 10000,
@@ -142,7 +135,7 @@ describe('Moxfield Integration Tests', () => {
 
       expect(result.current.error).toBeDefined();
       expect(result.current.error?.message).toContain('Failed to fetch deck');
-      
+
       console.log(`✅ Error handled correctly:`);
       console.log(`   Error message: ${result.current.error?.message}`);
       if (result.current.error && 'statusCode' in result.current.error) {

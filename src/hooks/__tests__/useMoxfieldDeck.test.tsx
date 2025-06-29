@@ -1,12 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient } from '@tanstack/react-query';
-import { 
-  useMoxfieldDeck, 
+import {
+  useMoxfieldDeck,
   useMoxfieldDecks,
   useUserDecks,
   useDeckCards,
-  moxfieldKeys 
+  moxfieldKeys,
 } from '../useMoxfieldDeck';
 import { AllTheProviders } from '@/tests/utils';
 import type { MoxfieldDeck } from '@/types/moxfield';
@@ -42,9 +42,18 @@ describe('Moxfield Hooks', () => {
       expect(moxfieldKeys.all).toEqual(['moxfield']);
       expect(moxfieldKeys.decks()).toEqual(['moxfield', 'decks']);
       expect(moxfieldKeys.deck('test123')).toEqual(['moxfield', 'decks', 'test123']);
-      expect(moxfieldKeys.userDecks('testuser')).toEqual(['moxfield', 'users', 'testuser', 'decks']);
+      expect(moxfieldKeys.userDecks('testuser')).toEqual([
+        'moxfield',
+        'users',
+        'testuser',
+        'decks',
+      ]);
       expect(moxfieldKeys.userDecksPaginated('testuser', 2, 20)).toEqual([
-        'moxfield', 'users', 'testuser', 'decks', { page: 2, pageSize: 20 }
+        'moxfield',
+        'users',
+        'testuser',
+        'decks',
+        { page: 2, pageSize: 20 },
       ]);
     });
   });
@@ -78,14 +87,11 @@ describe('Moxfield Hooks', () => {
     it('should fetch deck by ID', async () => {
       vi.mocked(fetchMoxfieldDeck).mockResolvedValueOnce(mockDeck);
 
-      const { result } = renderHook(
-        () => useMoxfieldDeck('test123'),
-        {
-          wrapper: ({ children }) => (
-            <AllTheProviders queryClient={queryClient}>{children}</AllTheProviders>
-          ),
-        }
-      );
+      const { result } = renderHook(() => useMoxfieldDeck('test123'), {
+        wrapper: ({ children }) => (
+          <AllTheProviders queryClient={queryClient}>{children}</AllTheProviders>
+        ),
+      });
 
       expect(result.current.isLoading).toBe(true);
 
@@ -98,14 +104,11 @@ describe('Moxfield Hooks', () => {
     it('should extract deck ID from URL', async () => {
       vi.mocked(fetchMoxfieldDeck).mockResolvedValueOnce(mockDeck);
 
-      const { result } = renderHook(
-        () => useMoxfieldDeck('https://moxfield.com/decks/test123'),
-        {
-          wrapper: ({ children }) => (
-            <AllTheProviders queryClient={queryClient}>{children}</AllTheProviders>
-          ),
-        }
-      );
+      const { result } = renderHook(() => useMoxfieldDeck('https://moxfield.com/decks/test123'), {
+        wrapper: ({ children }) => (
+          <AllTheProviders queryClient={queryClient}>{children}</AllTheProviders>
+        ),
+      });
 
       await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
@@ -116,14 +119,11 @@ describe('Moxfield Hooks', () => {
       const error = new Error('Deck not found');
       vi.mocked(fetchMoxfieldDeck).mockRejectedValueOnce(error);
 
-      const { result } = renderHook(
-        () => useMoxfieldDeck('non-existent-deck'),
-        {
-          wrapper: ({ children }) => (
-            <AllTheProviders queryClient={queryClient}>{children}</AllTheProviders>
-          ),
-        }
-      );
+      const { result } = renderHook(() => useMoxfieldDeck('non-existent-deck'), {
+        wrapper: ({ children }) => (
+          <AllTheProviders queryClient={queryClient}>{children}</AllTheProviders>
+        ),
+      });
 
       await waitFor(() => expect(result.current.isError).toBe(true));
 
@@ -132,14 +132,11 @@ describe('Moxfield Hooks', () => {
     });
 
     it('should respect enabled option', () => {
-      const { result } = renderHook(
-        () => useMoxfieldDeck('test123', { enabled: false }),
-        {
-          wrapper: ({ children }) => (
-            <AllTheProviders queryClient={queryClient}>{children}</AllTheProviders>
-          ),
-        }
-      );
+      const { result } = renderHook(() => useMoxfieldDeck('test123', { enabled: false }), {
+        wrapper: ({ children }) => (
+          <AllTheProviders queryClient={queryClient}>{children}</AllTheProviders>
+        ),
+      });
 
       expect(result.current.isPending).toBe(true);
       expect(result.current.fetchStatus).toBe('idle');
@@ -156,17 +153,14 @@ describe('Moxfield Hooks', () => {
         .mockResolvedValueOnce(mockDeck1)
         .mockResolvedValueOnce(mockDeck2);
 
-      const { result } = renderHook(
-        () => useMoxfieldDecks(['deck1', 'deck2']),
-        {
-          wrapper: ({ children }) => (
-            <AllTheProviders queryClient={queryClient}>{children}</AllTheProviders>
-          ),
-        }
-      );
+      const { result } = renderHook(() => useMoxfieldDecks(['deck1', 'deck2']), {
+        wrapper: ({ children }) => (
+          <AllTheProviders queryClient={queryClient}>{children}</AllTheProviders>
+        ),
+      });
 
       await waitFor(() => {
-        expect(result.current.every(q => q.isSuccess)).toBe(true);
+        expect(result.current.every((q) => q.isSuccess)).toBe(true);
       });
 
       expect(result.current[0].data).toEqual(mockDeck1);
@@ -181,35 +175,34 @@ describe('Moxfield Hooks', () => {
         pageSize: 20,
         totalResults: 1,
         totalPages: 1,
-        data: [{
-          id: 'deck1',
-          publicId: 'deck1',
-          publicUrl: 'https://moxfield.com/decks/deck1',
-          name: 'User Deck',
-          format: 'commander' as const,
-          visibility: 'public' as const,
-          createdByUser: { userName: 'testuser' },
-          createdAtUtc: '2024-01-01',
-          lastUpdatedAtUtc: '2024-01-01',
-          mainboardCount: 99,
-          sideboardCount: 0,
-          likeCount: 0,
-          viewCount: 0,
-          commentCount: 0,
-          hasPrimer: false,
-        }],
+        data: [
+          {
+            id: 'deck1',
+            publicId: 'deck1',
+            publicUrl: 'https://moxfield.com/decks/deck1',
+            name: 'User Deck',
+            format: 'commander' as const,
+            visibility: 'public' as const,
+            createdByUser: { userName: 'testuser' },
+            createdAtUtc: '2024-01-01',
+            lastUpdatedAtUtc: '2024-01-01',
+            mainboardCount: 99,
+            sideboardCount: 0,
+            likeCount: 0,
+            viewCount: 0,
+            commentCount: 0,
+            hasPrimer: false,
+          },
+        ],
       };
 
       vi.mocked(fetchUserDecks).mockResolvedValueOnce(mockResponse);
 
-      const { result } = renderHook(
-        () => useUserDecks('testuser'),
-        {
-          wrapper: ({ children }) => (
-            <AllTheProviders queryClient={queryClient}>{children}</AllTheProviders>
-          ),
-        }
-      );
+      const { result } = renderHook(() => useUserDecks('testuser'), {
+        wrapper: ({ children }) => (
+          <AllTheProviders queryClient={queryClient}>{children}</AllTheProviders>
+        ),
+      });
 
       await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
@@ -242,7 +235,7 @@ describe('Moxfield Hooks', () => {
           'Card 3': { quantity: 1, boardType: 'sideboard', finish: 'nonfoil' },
         },
         commanders: {
-          'Commander': { quantity: 1, boardType: 'commander', finish: 'foil' },
+          Commander: { quantity: 1, boardType: 'commander', finish: 'foil' },
         },
       };
 
@@ -254,8 +247,8 @@ describe('Moxfield Hooks', () => {
         boardType: 'mainboard',
         cardName: 'Card 1',
       });
-      expect(cards.find(c => c.boardType === 'commander')).toBeTruthy();
-      expect(cards.find(c => c.boardType === 'sideboard')).toBeTruthy();
+      expect(cards.find((c) => c.boardType === 'commander')).toBeTruthy();
+      expect(cards.find((c) => c.boardType === 'sideboard')).toBeTruthy();
     });
 
     it('should extract all cards from v3 deck structure', () => {
@@ -279,20 +272,20 @@ describe('Moxfield Hooks', () => {
             cards: {
               'Card 1': { quantity: 4, boardType: 'mainboard', finish: 'nonfoil' },
               'Card 2': { quantity: 2, boardType: 'mainboard', finish: 'foil' },
-            }
+            },
           },
           sideboard: {
             count: 1,
             cards: {
               'Card 3': { quantity: 1, boardType: 'sideboard', finish: 'nonfoil' },
-            }
+            },
           },
           commanders: {
             count: 1,
             cards: {
-              'Commander': { quantity: 1, boardType: 'commander', finish: 'foil' },
-            }
-          }
+              Commander: { quantity: 1, boardType: 'commander', finish: 'foil' },
+            },
+          },
         },
       };
 
@@ -304,8 +297,8 @@ describe('Moxfield Hooks', () => {
         boardType: 'mainboard',
         cardName: 'Card 1',
       });
-      expect(cards.find(c => c.boardType === 'commander')).toBeTruthy();
-      expect(cards.find(c => c.boardType === 'sideboard')).toBeTruthy();
+      expect(cards.find((c) => c.boardType === 'commander')).toBeTruthy();
+      expect(cards.find((c) => c.boardType === 'sideboard')).toBeTruthy();
     });
 
     it('should return empty array for undefined deck', () => {

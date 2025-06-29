@@ -6,11 +6,11 @@ import type { MoxfieldDeck } from '@/types/moxfield';
 
 // Mock the hooks
 vi.mock('@/hooks/useMoxfieldDeck', () => ({
-  useMoxfieldDeck: vi.fn()
+  useMoxfieldDeck: vi.fn(),
 }));
 
 vi.mock('@/hooks/useScryfall', () => ({
-  useCardsByNames: vi.fn()
+  useCardsByNames: vi.fn(),
 }));
 
 import { useMoxfieldDeck } from '@/hooks/useMoxfieldDeck';
@@ -41,11 +41,11 @@ describe('DeckImporter', () => {
           count: 3,
           cards: {
             'Lightning Bolt': { quantity: 4, boardType: 'mainboard', finish: 'nonfoil' },
-            'Counterspell': { quantity: 2, boardType: 'mainboard', finish: 'nonfoil' },
-            'Sol Ring': { quantity: 1, boardType: 'mainboard', finish: 'foil' }
-          }
-        }
-      }
+            Counterspell: { quantity: 2, boardType: 'mainboard', finish: 'nonfoil' },
+            'Sol Ring': { quantity: 1, boardType: 'mainboard', finish: 'foil' },
+          },
+        },
+      },
     };
 
     vi.mocked(useMoxfieldDeck).mockReturnValue({
@@ -98,9 +98,9 @@ describe('DeckImporter', () => {
       viewCount: 0,
       commentCount: 0,
       mainboard: {
-        'Tarmogoyf': { quantity: 4, boardType: 'mainboard', finish: 'nonfoil' },
-        'Thoughtseize': { quantity: 3, boardType: 'mainboard', finish: 'nonfoil' }
-      }
+        Tarmogoyf: { quantity: 4, boardType: 'mainboard', finish: 'nonfoil' },
+        Thoughtseize: { quantity: 3, boardType: 'mainboard', finish: 'nonfoil' },
+      },
     };
 
     vi.mocked(useMoxfieldDeck).mockReturnValue({

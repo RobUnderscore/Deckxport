@@ -11,7 +11,7 @@ describe('Moxfield + Scryfall Integration Tests', () => {
   beforeAll(() => {
     queryClient = new QueryClient({
       defaultOptions: {
-        queries: { 
+        queries: {
           retry: 1,
           retryDelay: 100,
         },
@@ -32,46 +32,46 @@ describe('Moxfield + Scryfall Integration Tests', () => {
       // Use a public deck URL for testing
       const deckUrl = 'https://moxfield.com/decks/lkwkRXXSmkSd1W7VkOIjwQ';
       console.log(`📦 Testing full flow with deck: ${deckUrl}`);
-      
+
       // Step 1: Fetch the deck from Moxfield
-      const { result: deckResult } = renderHook(
-        () => useMoxfieldDeck(deckUrl),
+      const { result: deckResult } = renderHook(() => useMoxfieldDeck(deckUrl), {
+        wrapper: ({ children }) => (
+          <AllTheProviders queryClient={queryClient}>{children}</AllTheProviders>
+        ),
+      });
+
+      await waitFor(
+        () => {
+          if (deckResult.current.isError) {
+            console.error('Deck fetch error:', deckResult.current.error);
+          }
+          return expect(deckResult.current.isSuccess).toBe(true);
+        },
         {
-          wrapper: ({ children }) => (
-            <AllTheProviders queryClient={queryClient}>{children}</AllTheProviders>
-          ),
+          timeout: 15000,
         }
       );
 
-      await waitFor(() => {
-        if (deckResult.current.isError) {
-          console.error('Deck fetch error:', deckResult.current.error);
-        }
-        return expect(deckResult.current.isSuccess).toBe(true);
-      }, {
-        timeout: 15000,
-      });
-
       expect(deckResult.current.data).toBeDefined();
       const deck = deckResult.current.data!;
-      
+
       // Handle both v2 and v3 API structures
       const hasV3Structure = !!deck.boards?.mainboard;
-      const mainboardCards = hasV3Structure 
-        ? deck.boards!.mainboard!.cards 
-        : deck.mainboard || {};
+      const mainboardCards = hasV3Structure ? deck.boards!.mainboard!.cards : deck.mainboard || {};
       const sideboardCards = hasV3Structure
-        ? (deck.boards!.sideboard?.cards || {})
-        : (deck.sideboard || {});
-      
-      console.log(`✅ Successfully fetched deck: "${deck.name}" by ${deck.createdByUser?.userName || 'Unknown'}`);
+        ? deck.boards!.sideboard?.cards || {}
+        : deck.sideboard || {};
+
+      console.log(
+        `✅ Successfully fetched deck: "${deck.name}" by ${deck.createdByUser?.userName || 'Unknown'}`
+      );
       console.log(`   Format: ${deck.format}`);
       console.log(`   Main deck cards: ${Object.keys(mainboardCards).length} cards`);
       console.log(`   Sideboard cards: ${Object.keys(sideboardCards).length} cards`);
-      
+
       // Step 2: Extract all unique card names from the deck
       const cardNames = new Set<string>();
-      
+
       // Add mainboard cards
       if (hasV3Structure) {
         Object.entries(mainboardCards).forEach(([cardId, card]) => {
@@ -83,7 +83,7 @@ describe('Moxfield + Scryfall Integration Tests', () => {
           cardNames.add(cardName);
         });
       }
-      
+
       // Add sideboard cards
       if (hasV3Structure) {
         Object.entries(sideboardCards).forEach(([cardId, card]) => {
@@ -95,23 +95,22 @@ describe('Moxfield + Scryfall Integration Tests', () => {
           cardNames.add(cardName);
         });
       }
-      
+
       const uniqueCardNames = Array.from(cardNames);
       console.log(`\n🎴 Found ${uniqueCardNames.length} unique cards to fetch from Scryfall`);
-      
+
       // Show a sample of cards
       const sampleCards = uniqueCardNames.slice(0, 5);
-      console.log(`   Sample cards: ${sampleCards.join(', ')}${uniqueCardNames.length > 5 ? '...' : ''}`);
-      
-      // Step 3: Fetch all cards from Scryfall
-      const { result: cardsResult } = renderHook(
-        () => useCardsByNames(uniqueCardNames),
-        {
-          wrapper: ({ children }) => (
-            <AllTheProviders queryClient={queryClient}>{children}</AllTheProviders>
-          ),
-        }
+      console.log(
+        `   Sample cards: ${sampleCards.join(', ')}${uniqueCardNames.length > 5 ? '...' : ''}`
       );
+
+      // Step 3: Fetch all cards from Scryfall
+      const { result: cardsResult } = renderHook(() => useCardsByNames(uniqueCardNames), {
+        wrapper: ({ children }) => (
+          <AllTheProviders queryClient={queryClient}>{children}</AllTheProviders>
+        ),
+      });
 
       await waitFor(() => expect(cardsResult.current.isSuccess).toBe(true), {
         timeout: 30000, // Longer timeout for potentially many cards
@@ -119,19 +118,23 @@ describe('Moxfield + Scryfall Integration Tests', () => {
 
       expect(cardsResult.current.data).toBeDefined();
       const scryfallData = cardsResult.current.data!;
-      
+
       console.log(`\n✅ Successfully fetched ${scryfallData.data.length} cards from Scryfall`);
       if (scryfallData.not_found.length > 0) {
         console.log(`   ⚠️  Not found: ${scryfallData.not_found.length} cards`);
-        console.log(`   Not found cards: ${scryfallData.not_found.map(id => JSON.stringify(id)).join(', ')}`);
+        console.log(
+          `   Not found cards: ${scryfallData.not_found.map((id) => JSON.stringify(id)).join(', ')}`
+        );
       }
-      
+
       // Step 4: Verify the data integrity
       expect(scryfallData.data.length).toBeGreaterThan(0);
-      expect(scryfallData.data.length + scryfallData.not_found.length).toBeLessThanOrEqual(uniqueCardNames.length);
-      
+      expect(scryfallData.data.length + scryfallData.not_found.length).toBeLessThanOrEqual(
+        uniqueCardNames.length
+      );
+
       // Verify each fetched card has the expected data
-      scryfallData.data.forEach(card => {
+      scryfallData.data.forEach((card) => {
         expect(card).toHaveProperty('id');
         expect(card).toHaveProperty('name');
         expect(card).toHaveProperty('mana_cost');
@@ -140,19 +143,19 @@ describe('Moxfield + Scryfall Integration Tests', () => {
         expect(card).toHaveProperty('set');
         expect(card).toHaveProperty('collector_number');
       });
-      
+
       // Step 5: Cross-reference with deck data
       console.log('\n🔍 Cross-referencing deck and Scryfall data:');
-      
+
       // Create a map for quick lookup
       const scryfallCardMap = new Map(
-        scryfallData.data.map(card => [card.name.toLowerCase(), card])
+        scryfallData.data.map((card) => [card.name.toLowerCase(), card])
       );
-      
+
       // Check mainboard cards
       let mainboardMatched = 0;
       const mainboardCardNames: string[] = [];
-      
+
       if (hasV3Structure) {
         Object.values(mainboardCards).forEach((card) => {
           const cardName = card.card?.name;
@@ -177,23 +180,25 @@ describe('Moxfield + Scryfall Integration Tests', () => {
           }
         });
       }
-      
+
       console.log(`   Mainboard: ${mainboardMatched}/${mainboardCardNames.length} cards matched`);
-      
+
       // Check if we have image URIs for the cards
-      const cardsWithImages = scryfallData.data.filter(card => card.image_uris || card.card_faces);
+      const cardsWithImages = scryfallData.data.filter(
+        (card) => card.image_uris || card.card_faces
+      );
       console.log(`   Cards with images: ${cardsWithImages.length}/${scryfallData.data.length}`);
-      
+
       // Verify mana costs align with deck's mana curve
       const manaCosts = scryfallData.data
-        .filter(card => card.mana_cost)
-        .map(card => card.cmc || 0);
-      
+        .filter((card) => card.mana_cost)
+        .map((card) => card.cmc || 0);
+
       if (manaCosts.length > 0) {
         const avgCmc = manaCosts.reduce((sum, cmc) => sum + cmc, 0) / manaCosts.length;
         console.log(`   Average CMC: ${avgCmc.toFixed(2)}`);
       }
-      
+
       console.log('\n✅ Full integration test completed successfully!');
     }, 60000); // 60 second timeout for the full flow
 
@@ -201,35 +206,30 @@ describe('Moxfield + Scryfall Integration Tests', () => {
       // This test ensures special characters in card names work across both APIs
       const deckUrl = 'https://moxfield.com/decks/lkwkRXXSmkSd1W7VkOIjwQ';
       console.log(`🎯 Testing special character handling with deck: ${deckUrl}`);
-      
+
       // Fetch deck
-      const { result: deckResult } = renderHook(
-        () => useMoxfieldDeck(deckUrl),
-        {
-          wrapper: ({ children }) => (
-            <AllTheProviders queryClient={queryClient}>{children}</AllTheProviders>
-          ),
-        }
-      );
+      const { result: deckResult } = renderHook(() => useMoxfieldDeck(deckUrl), {
+        wrapper: ({ children }) => (
+          <AllTheProviders queryClient={queryClient}>{children}</AllTheProviders>
+        ),
+      });
 
       await waitFor(() => expect(deckResult.current.isSuccess).toBe(true), {
         timeout: 15000,
       });
 
       const deck = deckResult.current.data!;
-      
+
       // Handle both v2 and v3 API structures
       const hasV3Structure = !!deck.boards?.mainboard;
-      const mainboardCards = hasV3Structure 
-        ? deck.boards!.mainboard!.cards 
-        : deck.mainboard || {};
+      const mainboardCards = hasV3Structure ? deck.boards!.mainboard!.cards : deck.mainboard || {};
       const sideboardCards = hasV3Structure
-        ? (deck.boards!.sideboard?.cards || {})
-        : (deck.sideboard || {});
-      
+        ? deck.boards!.sideboard?.cards || {}
+        : deck.sideboard || {};
+
       // Find cards with special characters
       const allCardNames: string[] = [];
-      
+
       if (hasV3Structure) {
         Object.values(mainboardCards).forEach((card) => {
           const name = card.card?.name;
@@ -243,35 +243,35 @@ describe('Moxfield + Scryfall Integration Tests', () => {
         allCardNames.push(...Object.keys(mainboardCards));
         allCardNames.push(...Object.keys(sideboardCards));
       }
-      
-      const specialCharCards = allCardNames.filter(name => 
-        /[^\w\s,'-]/.test(name) || // Non-standard characters
-        name.includes('//') ||      // Split cards
-        name.includes('Æ') ||       // Special letters
-        name.includes("'")          // Smart quotes
+
+      const specialCharCards = allCardNames.filter(
+        (name) =>
+          /[^\w\s,'-]/.test(name) || // Non-standard characters
+          name.includes('//') || // Split cards
+          name.includes('Æ') || // Special letters
+          name.includes("'") // Smart quotes
       );
-      
+
       if (specialCharCards.length > 0) {
         console.log(`\n🔤 Found ${specialCharCards.length} cards with special characters:`);
-        specialCharCards.slice(0, 5).forEach(card => console.log(`   - ${card}`));
-        
+        specialCharCards.slice(0, 5).forEach((card) => console.log(`   - ${card}`));
+
         // Fetch these specific cards
-        const { result: cardsResult } = renderHook(
-          () => useCardsByNames(specialCharCards),
-          {
-            wrapper: ({ children }) => (
-              <AllTheProviders queryClient={queryClient}>{children}</AllTheProviders>
-            ),
-          }
-        );
+        const { result: cardsResult } = renderHook(() => useCardsByNames(specialCharCards), {
+          wrapper: ({ children }) => (
+            <AllTheProviders queryClient={queryClient}>{children}</AllTheProviders>
+          ),
+        });
 
         await waitFor(() => expect(cardsResult.current.isSuccess).toBe(true), {
           timeout: 20000,
         });
 
         const scryfallData = cardsResult.current.data!;
-        console.log(`✅ Successfully fetched ${scryfallData.data.length}/${specialCharCards.length} special character cards`);
-        
+        console.log(
+          `✅ Successfully fetched ${scryfallData.data.length}/${specialCharCards.length} special character cards`
+        );
+
         // Verify the special character cards were handled correctly
         expect(scryfallData.data.length).toBeGreaterThan(0);
       } else {
@@ -283,42 +283,43 @@ describe('Moxfield + Scryfall Integration Tests', () => {
       // Commander decks are typically 100 cards, good for testing larger batches
       const commanderDeckUrl = 'https://moxfield.com/decks/lkwkRXXSmkSd1W7VkOIjwQ';
       console.log(`🎮 Testing large deck handling with: ${commanderDeckUrl}`);
-      
+
       const startTime = Date.now();
-      
+
       // Fetch deck
-      const { result: deckResult } = renderHook(
-        () => useMoxfieldDeck(commanderDeckUrl),
-        {
-          wrapper: ({ children }) => (
-            <AllTheProviders queryClient={queryClient}>{children}</AllTheProviders>
-          ),
-        }
-      );
+      const { result: deckResult } = renderHook(() => useMoxfieldDeck(commanderDeckUrl), {
+        wrapper: ({ children }) => (
+          <AllTheProviders queryClient={queryClient}>{children}</AllTheProviders>
+        ),
+      });
 
       await waitFor(() => expect(deckResult.current.isSuccess).toBe(true), {
         timeout: 15000,
       });
 
       const deck = deckResult.current.data!;
-      
+
       // Handle both v2 and v3 API structures
       const hasV3Structure = !!deck.boards?.mainboard;
-      const mainboardCards = hasV3Structure 
-        ? deck.boards!.mainboard!.cards 
-        : deck.mainboard || {};
+      const mainboardCards = hasV3Structure ? deck.boards!.mainboard!.cards : deck.mainboard || {};
       const sideboardCards = hasV3Structure
-        ? (deck.boards!.sideboard?.cards || {})
-        : (deck.sideboard || {});
-        
-      const mainboardCount = Object.values(mainboardCards).reduce((sum, card) => sum + card.quantity, 0);
-      const sideboardCount = Object.values(sideboardCards).reduce((sum, card) => sum + card.quantity, 0);
+        ? deck.boards!.sideboard?.cards || {}
+        : deck.sideboard || {};
+
+      const mainboardCount = Object.values(mainboardCards).reduce(
+        (sum, card) => sum + card.quantity,
+        0
+      );
+      const sideboardCount = Object.values(sideboardCards).reduce(
+        (sum, card) => sum + card.quantity,
+        0
+      );
       const totalCards = mainboardCount + sideboardCount;
       console.log(`📊 Deck size: ${totalCards} total cards`);
-      
+
       // Get unique cards
       const uniqueCards = new Set<string>();
-      
+
       if (hasV3Structure) {
         Object.values(mainboardCards).forEach((card) => {
           const name = card.card?.name;
@@ -329,27 +330,24 @@ describe('Moxfield + Scryfall Integration Tests', () => {
           if (name) uniqueCards.add(name);
         });
       } else {
-        Object.keys(mainboardCards).forEach(name => uniqueCards.add(name));
-        Object.keys(sideboardCards).forEach(name => uniqueCards.add(name));
+        Object.keys(mainboardCards).forEach((name) => uniqueCards.add(name));
+        Object.keys(sideboardCards).forEach((name) => uniqueCards.add(name));
       }
-      
+
       const uniqueCardNames = Array.from(uniqueCards);
       console.log(`   Unique cards: ${uniqueCardNames.length}`);
-      
+
       // Test batching if we have more than 75 cards
       if (uniqueCardNames.length > 75) {
         console.log(`   This will require ${Math.ceil(uniqueCardNames.length / 75)} batch(es)`);
       }
-      
+
       // Fetch all cards
-      const { result: cardsResult } = renderHook(
-        () => useCardsByNames(uniqueCardNames),
-        {
-          wrapper: ({ children }) => (
-            <AllTheProviders queryClient={queryClient}>{children}</AllTheProviders>
-          ),
-        }
-      );
+      const { result: cardsResult } = renderHook(() => useCardsByNames(uniqueCardNames), {
+        wrapper: ({ children }) => (
+          <AllTheProviders queryClient={queryClient}>{children}</AllTheProviders>
+        ),
+      });
 
       await waitFor(() => expect(cardsResult.current.isSuccess).toBe(true), {
         timeout: 45000,
@@ -357,18 +355,20 @@ describe('Moxfield + Scryfall Integration Tests', () => {
 
       const endTime = Date.now();
       const elapsedSeconds = ((endTime - startTime) / 1000).toFixed(2);
-      
+
       const scryfallData = cardsResult.current.data!;
       console.log(`\n⏱️  Performance metrics:`);
       console.log(`   Total time: ${elapsedSeconds}s`);
       console.log(`   Cards fetched: ${scryfallData.data.length}`);
-      console.log(`   Average time per card: ${(parseFloat(elapsedSeconds) / scryfallData.data.length * 1000).toFixed(0)}ms`);
-      
+      console.log(
+        `   Average time per card: ${((parseFloat(elapsedSeconds) / scryfallData.data.length) * 1000).toFixed(0)}ms`
+      );
+
       // Verify all cards were fetched successfully
       expect(scryfallData.data.length + scryfallData.not_found.length).toBe(uniqueCardNames.length);
-      
+
       // Check memory usage (ensure we're not keeping too much in memory)
-      const totalImageUris = scryfallData.data.filter(card => card.image_uris).length;
+      const totalImageUris = scryfallData.data.filter((card) => card.image_uris).length;
       console.log(`   Cards with images ready: ${totalImageUris}/${scryfallData.data.length}`);
     }, 60000);
   });

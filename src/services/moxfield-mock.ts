@@ -30,7 +30,7 @@ const SAMPLE_DECK: MoxfieldDeck = {
       boardType: 'mainboard',
       finish: 'nonfoil',
     },
-    'Counterspell': {
+    Counterspell: {
       quantity: 1,
       boardType: 'mainboard',
       finish: 'nonfoil',
@@ -45,7 +45,7 @@ const SAMPLE_DECK: MoxfieldDeck = {
       boardType: 'mainboard',
       finish: 'nonfoil',
     },
-    'Brainstorm': {
+    Brainstorm: {
       quantity: 1,
       boardType: 'mainboard',
       finish: 'nonfoil',
@@ -71,8 +71,8 @@ const SAMPLE_DECK: MoxfieldDeck = {
 
 export async function fetchMoxfieldDeckMock(deckId: string): Promise<MoxfieldDeck> {
   // Simulate network delay
-  await new Promise(resolve => setTimeout(resolve, 500));
-  
+  await new Promise((resolve) => setTimeout(resolve, 500));
+
   // Return sample data with the requested deck ID
   return {
     ...SAMPLE_DECK,

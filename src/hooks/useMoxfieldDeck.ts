@@ -15,7 +15,7 @@ export const moxfieldKeys = {
   decks: () => [...moxfieldKeys.all, 'decks'] as const,
   deck: (deckId: string) => [...moxfieldKeys.decks(), deckId] as const,
   userDecks: (username: string) => [...moxfieldKeys.all, 'users', username, 'decks'] as const,
-  userDecksPaginated: (username: string, page: number, pageSize: number) => 
+  userDecksPaginated: (username: string, page: number, pageSize: number) =>
     [...moxfieldKeys.userDecks(username), { page, pageSize }] as const,
 };
 
@@ -29,11 +29,11 @@ export function useMoxfieldDeck(
   options?: Omit<UseQueryOptions<MoxfieldDeck, MoxfieldApiError>, 'queryKey' | 'queryFn'>
 ) {
   // Extract deck ID if URL provided
-  const deckId = deckIdOrUrl ? (
-    isValidMoxfieldUrl(deckIdOrUrl) 
-      ? extractDeckIdFromUrl(deckIdOrUrl) 
+  const deckId = deckIdOrUrl
+    ? isValidMoxfieldUrl(deckIdOrUrl)
+      ? extractDeckIdFromUrl(deckIdOrUrl)
       : deckIdOrUrl
-  ) : undefined;
+    : undefined;
 
   return useQuery({
     queryKey: deckId ? moxfieldKeys.deck(deckId) : ['moxfield-deck-invalid'],
@@ -59,9 +59,9 @@ export function useMoxfieldDecks(
   deckIdsOrUrls: string[],
   options?: Omit<UseQueryOptions<MoxfieldDeck, MoxfieldApiError>, 'queryKey' | 'queryFn'>
 ) {
-  const queries = deckIdsOrUrls.map(deckIdOrUrl => {
-    const deckId = isValidMoxfieldUrl(deckIdOrUrl) 
-      ? extractDeckIdFromUrl(deckIdOrUrl) 
+  const queries = deckIdsOrUrls.map((deckIdOrUrl) => {
+    const deckId = isValidMoxfieldUrl(deckIdOrUrl)
+      ? extractDeckIdFromUrl(deckIdOrUrl)
       : deckIdOrUrl;
 
     return {
@@ -93,10 +93,13 @@ export function useUserDecks(
   username: string | undefined,
   page: number = 1,
   pageSize: number = 20,
-  options?: Omit<UseQueryOptions<MoxfieldUserDecksResponse, MoxfieldApiError>, 'queryKey' | 'queryFn'>
+  options?: Omit<
+    UseQueryOptions<MoxfieldUserDecksResponse, MoxfieldApiError>,
+    'queryKey' | 'queryFn'
+  >
 ) {
   return useQuery({
-    queryKey: username 
+    queryKey: username
       ? moxfieldKeys.userDecksPaginated(username, page, pageSize)
       : ['moxfield-user-invalid'],
     queryFn: () => {
@@ -156,7 +159,7 @@ export function useDeckCards(deck: MoxfieldDeck | undefined) {
         cards.push({ card, boardType: 'companion', cardName });
       });
     }
-  } 
+  }
   // Handle v2 API structure (fallback)
   else {
     // Process mainboard

@@ -11,7 +11,7 @@ export type Color = 'W' | 'U' | 'B' | 'R' | 'G';
 export type LegalityStatus = 'legal' | 'not_legal' | 'restricted' | 'banned';
 
 // Card layout types
-export type CardLayout = 
+export type CardLayout =
   | 'normal'
   | 'split'
   | 'flip'
@@ -56,7 +56,7 @@ export type Finish = 'foil' | 'nonfoil' | 'etched';
 export type ImageStatus = 'missing' | 'placeholder' | 'lowres' | 'highres_scan';
 
 // Set types
-export type SetType = 
+export type SetType =
   | 'core'
   | 'expansion'
   | 'masters'
@@ -85,11 +85,11 @@ export type SetType =
  * Image URIs for different card image formats
  */
 export interface ImageUris {
-  small?: string;       // 146 × 204
-  normal?: string;      // 488 × 680
-  large?: string;       // 672 × 936
-  png?: string;         // 745 × 1040
-  art_crop?: string;    // Varies
+  small?: string; // 146 × 204
+  normal?: string; // 488 × 680
+  large?: string; // 672 × 936
+  png?: string; // 745 × 1040
+  art_crop?: string; // Varies
   border_crop?: string; // 480 × 680
 }
 
@@ -218,7 +218,7 @@ export interface Card {
   tcgplayer_etched_id?: number;
   cardmarket_id?: number;
   arena_id?: number;
-  
+
   // Names and text
   name: string;
   lang: string;
@@ -229,7 +229,7 @@ export interface Card {
   highres_image: boolean;
   image_status: ImageStatus;
   image_uris?: ImageUris;
-  
+
   // Gameplay fields
   mana_cost?: string;
   cmc: number;
@@ -241,13 +241,13 @@ export interface Card {
   defense?: string;
   life_modifier?: string;
   hand_modifier?: string;
-  
+
   // Colors
   colors?: Color[];
   color_identity: Color[];
   color_indicator?: Color[];
   produced_mana?: Color[];
-  
+
   // Game mechanics
   keywords: string[];
   legalities: Legalities;
@@ -270,7 +270,7 @@ export interface Card {
   scryfall_set_uri: string;
   rulings_uri: string;
   prints_search_uri: string;
-  
+
   // Collector information
   collector_number: string;
   digital: boolean;
@@ -289,12 +289,12 @@ export interface Card {
   booster: boolean;
   story_spotlight: boolean;
   promo_types?: string[];
-  
+
   // Prices and purchase
   prices: Prices;
   related_uris: RelatedUris;
   purchase_uris?: PurchaseUris;
-  
+
   // Additional fields
   edhrec_rank?: number;
   penny_rank?: number;
@@ -306,7 +306,7 @@ export interface Card {
   content_warning?: boolean;
   attraction_lights?: number[];
   preview?: Preview;
-  
+
   // Multi-face fields
   card_faces?: CardFace[];
   all_parts?: RelatedCard[];
@@ -439,7 +439,7 @@ export interface BulkData {
 /**
  * Card identifier for collection endpoint
  */
-export type CardIdentifier = 
+export type CardIdentifier =
   | { id: string }
   | { mtgo_id: number }
   | { multiverse_id: number }

@@ -57,9 +57,7 @@ describe('Moxfield URL Utilities', () => {
   describe('buildMoxfieldPublicUrl', () => {
     it('should build correct public URL', () => {
       const deckId = 'test-deck-123';
-      expect(buildMoxfieldPublicUrl(deckId)).toBe(
-        'https://moxfield.com/decks/test-deck-123'
-      );
+      expect(buildMoxfieldPublicUrl(deckId)).toBe('https://moxfield.com/decks/test-deck-123');
     });
   });
 

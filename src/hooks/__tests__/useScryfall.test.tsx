@@ -16,9 +16,7 @@ vi.mock('@/services/scryfall', () => ({
   fetchBulkDataInfo: vi.fn(),
   fetchCard: vi.fn(),
   fetchCardCollectionBatched: vi.fn(),
-  cardNamesToIdentifiers: vi.fn((names: string[]) => 
-    names.map(name => ({ name }))
-  ),
+  cardNamesToIdentifiers: vi.fn((names: string[]) => names.map((name) => ({ name }))),
 }));
 
 // Mock IndexedDB utils
@@ -51,10 +49,17 @@ describe('Scryfall Hooks', () => {
       expect(scryfallKeys.cards()).toEqual(['scryfall', 'cards']);
       expect(scryfallKeys.card('test-id')).toEqual(['scryfall', 'cards', 'test-id']);
       expect(scryfallKeys.collection([{ name: 'Test' }])).toEqual([
-        'scryfall', 'cards', 'collection', [{ name: 'Test' }]
+        'scryfall',
+        'cards',
+        'collection',
+        [{ name: 'Test' }],
       ]);
       expect(scryfallKeys.search('lightning', 2)).toEqual([
-        'scryfall', 'cards', 'search', 'lightning', 2
+        'scryfall',
+        'cards',
+        'search',
+        'lightning',
+        2,
       ]);
     });
   });
@@ -92,7 +97,7 @@ describe('Scryfall Hooks', () => {
         duel: 'legal',
         oldschool: 'not_legal',
         premodern: 'not_legal',
-        predh: 'not_legal'
+        predh: 'not_legal',
       },
       games: [],
       reserved: false,
@@ -144,14 +149,11 @@ describe('Scryfall Hooks', () => {
         _cachedAt: Date.now(),
       });
 
-      const { result } = renderHook(
-        () => useCard('test-id'),
-        {
-          wrapper: ({ children }) => (
-            <AllTheProviders queryClient={queryClient}>{children}</AllTheProviders>
-          ),
-        }
-      );
+      const { result } = renderHook(() => useCard('test-id'), {
+        wrapper: ({ children }) => (
+          <AllTheProviders queryClient={queryClient}>{children}</AllTheProviders>
+        ),
+      });
 
       await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
@@ -165,14 +167,11 @@ describe('Scryfall Hooks', () => {
       vi.mocked(fetchCard).mockResolvedValueOnce(mockCard);
       vi.mocked(cacheCard).mockResolvedValueOnce(undefined);
 
-      const { result } = renderHook(
-        () => useCard('test-id'),
-        {
-          wrapper: ({ children }) => (
-            <AllTheProviders queryClient={queryClient}>{children}</AllTheProviders>
-          ),
-        }
-      );
+      const { result } = renderHook(() => useCard('test-id'), {
+        wrapper: ({ children }) => (
+          <AllTheProviders queryClient={queryClient}>{children}</AllTheProviders>
+        ),
+      });
 
       await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
@@ -184,19 +183,13 @@ describe('Scryfall Hooks', () => {
 
   describe('useCardCollection', () => {
     it('should generate correct query key', () => {
-      const identifiers = [
-        { name: 'Cached Card' },
-        { name: 'Fetched Card' },
-      ];
+      const identifiers = [{ name: 'Cached Card' }, { name: 'Fetched Card' }];
 
-      const { result } = renderHook(
-        () => useCardCollection(identifiers, { enabled: false }),
-        {
-          wrapper: ({ children }) => (
-            <AllTheProviders queryClient={queryClient}>{children}</AllTheProviders>
-          ),
-        }
-      );
+      const { result } = renderHook(() => useCardCollection(identifiers, { enabled: false }), {
+        wrapper: ({ children }) => (
+          <AllTheProviders queryClient={queryClient}>{children}</AllTheProviders>
+        ),
+      });
 
       // Check that the hook returns the expected shape
       expect(result.current.isPending).toBe(true);
@@ -208,15 +201,12 @@ describe('Scryfall Hooks', () => {
   describe('useCardsByNames', () => {
     it('should use cardNamesToIdentifiers', () => {
       const cardNames = ['Lightning Bolt', 'Counterspell'];
-      
-      const { result } = renderHook(
-        () => useCardsByNames(cardNames, { enabled: false }),
-        {
-          wrapper: ({ children }) => (
-            <AllTheProviders queryClient={queryClient}>{children}</AllTheProviders>
-          ),
-        }
-      );
+
+      const { result } = renderHook(() => useCardsByNames(cardNames, { enabled: false }), {
+        wrapper: ({ children }) => (
+          <AllTheProviders queryClient={queryClient}>{children}</AllTheProviders>
+        ),
+      });
 
       // The hook should be disabled and return pending state
       expect(result.current.isPending).toBe(true);
@@ -236,14 +226,11 @@ describe('Scryfall Hooks', () => {
 
       vi.mocked(getCacheStats).mockResolvedValueOnce(mockStats);
 
-      const { result } = renderHook(
-        () => useCacheStats(),
-        {
-          wrapper: ({ children }) => (
-            <AllTheProviders queryClient={queryClient}>{children}</AllTheProviders>
-          ),
-        }
-      );
+      const { result } = renderHook(() => useCacheStats(), {
+        wrapper: ({ children }) => (
+          <AllTheProviders queryClient={queryClient}>{children}</AllTheProviders>
+        ),
+      });
 
       await waitFor(() => expect(result.current.isSuccess).toBe(true));
 

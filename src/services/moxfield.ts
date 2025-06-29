@@ -37,13 +37,13 @@ export async function fetchMoxfieldDeck(deckId: string): Promise<MoxfieldDeck> {
     console.warn('Using mock Moxfield data in development. Production will require a backend.');
     return fetchMoxfieldDeckMock(deckId);
   }
-  
+
   const baseUrl = `${MOXFIELD_API_BASE}/v3/decks/all/${deckId}`;
   // Use CORS proxy to bypass CORS restrictions
   const url = `${CORS_PROXY}${baseUrl}`;
-  
+
   console.log('Fetching from:', url);
-  
+
   try {
     const response = await fetch(url);
 
@@ -68,7 +68,7 @@ export async function fetchMoxfieldDeck(deckId: string): Promise<MoxfieldDeck> {
     if (error instanceof MoxfieldApiError) {
       throw error;
     }
-    
+
     // Network or other errors
     throw new MoxfieldApiError(
       error instanceof Error ? error.message : 'Failed to fetch deck',
@@ -92,7 +92,7 @@ export async function fetchUserDecks(
 ): Promise<MoxfieldUserDecksResponse> {
   const baseUrl = `${MOXFIELD_API_BASE}/v3/users/${username}/decks?pageSize=${pageSize}&pageNumber=${page}`;
   const url = `${CORS_PROXY}${baseUrl}`;
-  
+
   try {
     const response = await fetch(url);
 
@@ -117,7 +117,7 @@ export async function fetchUserDecks(
     if (error instanceof MoxfieldApiError) {
       throw error;
     }
-    
+
     throw new MoxfieldApiError(
       error instanceof Error ? error.message : 'Failed to fetch user decks',
       undefined,

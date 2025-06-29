@@ -43,12 +43,9 @@ describe('Scryfall Service', () => {
       } as Response);
 
       const result = await fetchBulkDataInfo();
-      
+
       expect(result).toEqual(mockBulkData);
-      expect(fetch).toHaveBeenCalledWith(
-        expect.stringContaining('bulk-data'),
-        undefined
-      );
+      expect(fetch).toHaveBeenCalledWith(expect.stringContaining('bulk-data'), undefined);
     });
 
     it('should handle API errors', async () => {
@@ -81,13 +78,10 @@ describe('Scryfall Service', () => {
         json: async () => mockResponse,
       } as Response);
 
-      const identifiers = [
-        { name: 'Lightning Bolt' },
-        { name: 'Counterspell' },
-      ];
+      const identifiers = [{ name: 'Lightning Bolt' }, { name: 'Counterspell' }];
 
       const result = await fetchCardCollection(identifiers);
-      
+
       expect(result).toEqual(mockResponse);
       expect(fetch).toHaveBeenCalledWith(
         expect.stringContaining('cards/collection'),
@@ -103,7 +97,7 @@ describe('Scryfall Service', () => {
 
     it('should return empty result for empty identifiers', async () => {
       const result = await fetchCardCollection([]);
-      
+
       expect(result).toEqual({
         object: 'list',
         data: [],
@@ -113,13 +107,13 @@ describe('Scryfall Service', () => {
         total_cards: 0,
         warnings: [],
       });
-      
+
       expect(fetch).not.toHaveBeenCalled();
     });
 
     it('should throw error for too many identifiers', async () => {
       const identifiers = Array(76).fill({ name: 'Test' });
-      
+
       await expect(fetchCardCollection(identifiers)).rejects.toThrow(
         'Collection request exceeds maximum size of 75 cards'
       );
@@ -128,20 +122,26 @@ describe('Scryfall Service', () => {
 
   describe('fetchCardCollectionBatched', () => {
     it('should batch large requests', async () => {
-      const identifiers = Array(150).fill(null).map((_, i) => ({ name: `Card ${i}` }));
-      
+      const identifiers = Array(150)
+        .fill(null)
+        .map((_, i) => ({ name: `Card ${i}` }));
+
       const mockResponse1 = {
         object: 'list',
-        data: Array(75).fill(null).map((_, i) => ({ id: `id${i}`, name: `Card ${i}` } as Card)),
+        data: Array(75)
+          .fill(null)
+          .map((_, i) => ({ id: `id${i}`, name: `Card ${i}` }) as Card),
         not_found: [],
         has_more: false,
         next_page: undefined,
         total_cards: 75,
       };
-      
+
       const mockResponse2 = {
         object: 'list',
-        data: Array(75).fill(null).map((_, i) => ({ id: `id${i + 75}`, name: `Card ${i + 75}` } as Card)),
+        data: Array(75)
+          .fill(null)
+          .map((_, i) => ({ id: `id${i + 75}`, name: `Card ${i + 75}` }) as Card),
         not_found: [],
         has_more: false,
         next_page: undefined,
@@ -159,7 +159,7 @@ describe('Scryfall Service', () => {
         } as Response);
 
       const result = await fetchCardCollectionBatched(identifiers);
-      
+
       expect(result).toHaveProperty('data');
       expect(result.data).toHaveLength(150);
       expect(result).toHaveProperty('total_cards', 150);
@@ -171,7 +171,7 @@ describe('Scryfall Service', () => {
     it('should convert card names to identifiers', () => {
       const names = ['Lightning Bolt', 'Counterspell', 'Black Lotus'];
       const identifiers = cardNamesToIdentifiers(names);
-      
+
       expect(identifiers).toEqual([
         { name: 'Lightning Bolt' },
         { name: 'Counterspell' },
@@ -217,7 +217,7 @@ describe('Scryfall Service', () => {
       } as Response);
 
       const result = await getDefaultBulkData();
-      
+
       expect(result?.type).toBe('default_cards');
     });
 
@@ -257,7 +257,7 @@ describe('Scryfall Service', () => {
       } as Response);
 
       const result = await getDefaultBulkData();
-      
+
       expect(result?.type).toBe('oracle_cards');
     });
   });
@@ -278,21 +278,18 @@ describe('Scryfall Service', () => {
       } as Response);
 
       const result = await searchCards('lightning bolt', 1);
-      
+
       expect(result).toHaveProperty('data');
       expect(result.data).toEqual(mockResponse.data);
-      expect(fetch).toHaveBeenCalledWith(
-        expect.stringContaining('cards/search'),
-        undefined
-      );
+      expect(fetch).toHaveBeenCalledWith(expect.stringContaining('cards/search'), undefined);
     });
   });
 
   describe('fetchCard', () => {
     it('should fetch single card by ID', async () => {
-      const mockCard = { 
+      const mockCard = {
         object: 'card' as const,
-        id: 'test-id', 
+        id: 'test-id',
         name: 'Test Card',
         oracle_id: 'oracle-id',
         colors: ['R'],
@@ -320,7 +317,7 @@ describe('Scryfall Service', () => {
           duel: 'legal',
           oldschool: 'not_legal',
           premodern: 'not_legal',
-          predh: 'not_legal'
+          predh: 'not_legal',
         },
         games: [],
         reserved: false,
@@ -365,7 +362,7 @@ describe('Scryfall Service', () => {
         cmc: 1.0,
         type_line: 'Instant',
         oracle_text: 'Test effect',
-        mana_cost: '{R}'
+        mana_cost: '{R}',
       } as Card;
 
       vi.mocked(fetch).mockResolvedValueOnce({
@@ -374,12 +371,9 @@ describe('Scryfall Service', () => {
       } as Response);
 
       const result = await fetchCard('test-id');
-      
+
       expect(result).toEqual(mockCard);
-      expect(fetch).toHaveBeenCalledWith(
-        expect.stringContaining('cards/test-id'),
-        undefined
-      );
+      expect(fetch).toHaveBeenCalledWith(expect.stringContaining('cards/test-id'), undefined);
     });
   });
 
@@ -389,11 +383,11 @@ describe('Scryfall Service', () => {
         ok: true,
         json: async () => ({ data: [] }),
       } as Response);
-      
+
       // Make two requests
       await fetchBulkDataInfo();
       await fetchBulkDataInfo();
-      
+
       // Both requests should have been made
       expect(fetch).toHaveBeenCalledTimes(2);
     });

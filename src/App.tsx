@@ -1,5 +1,5 @@
-import { Routes, Route } from 'react-router-dom'
-import { DeckImporter } from '@/components/DeckImporter'
+import { Routes, Route } from 'react-router-dom';
+import { DeckImporter } from '@/components/DeckImporter';
 
 function HomePage() {
   return (
@@ -11,11 +11,11 @@ function HomePage() {
             Import your Moxfield deck and view all cards
           </p>
         </div>
-        
+
         <DeckImporter />
       </div>
     </div>
-  )
+  );
 }
 
 function App() {
@@ -23,7 +23,7 @@ function App() {
     <Routes>
       <Route path="/" element={<HomePage />} />
     </Routes>
-  )
+  );
 }
 
-export default App
+export default App;
