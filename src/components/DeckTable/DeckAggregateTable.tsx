@@ -40,6 +40,7 @@ import type { CardAggregate } from "@/types/cardAggregate";
 import { ManaSymbols } from "@/utils/manaSymbols";
 import { CSVExportDialog } from "./CSVExportAggregateDialog";
 import { CardPreview } from "@/components/ui/card-preview";
+import { DualFacedCardPreview, DualFacedIndicator, getCombinedOracleText, getDualFacedDisplayImage } from "@/components/ui/dual-faced-card";
 import { 
   loadColumnVisibility, 
   saveColumnVisibility, 
@@ -167,21 +168,35 @@ export function DeckAggregateTable({ cards, deckName = "Deck" }: DeckAggregateTa
       enableSorting: false,
       cell: ({ row }) => {
         const card = row.original;
-        const imageUrl = card.imageUris?.small;
+        const imageUrl = getDualFacedDisplayImage(card);
+        const isDualFaced = card.cardFaces && card.cardFaces.length > 1;
+        
+        const imageElement = (
+          <div className="overflow-hidden rounded w-12 h-16">
+            {imageUrl && (
+              <img
+                src={imageUrl}
+                alt={card.name}
+                className="w-full h-full object-cover"
+              />
+            )}
+          </div>
+        );
+        
+        if (isDualFaced) {
+          return (
+            <DualFacedCardPreview card={card}>
+              {imageElement}
+            </DualFacedCardPreview>
+          );
+        }
+        
         return (
           <CardPreview
-            imageUrl={imageUrl}
+            imageUrl={card.imageUris?.normal || card.imageUris?.large || imageUrl}
             cardName={card.name}
           >
-            <div className="overflow-hidden rounded w-12 h-16">
-              {imageUrl && (
-                <img
-                  src={imageUrl}
-                  alt={card.name}
-                  className="w-full h-full object-cover"
-                />
-              )}
-            </div>
+            {imageElement}
           </CardPreview>
         );
       },
@@ -203,14 +218,31 @@ export function DeckAggregateTable({ cards, deckName = "Deck" }: DeckAggregateTa
       filterFn: "includesString",
       cell: ({ row }) => {
         const card = row.original;
+        const isDualFaced = card.cardFaces && card.cardFaces.length > 1;
+        
+        const nameElement = (
+          <div className="flex items-center gap-2">
+            <div className="font-medium text-white text-sm">
+              {card.name}
+            </div>
+            {isDualFaced && <DualFacedIndicator card={card} />}
+          </div>
+        );
+        
+        if (isDualFaced) {
+          return (
+            <DualFacedCardPreview card={card}>
+              {nameElement}
+            </DualFacedCardPreview>
+          );
+        }
+        
         return (
           <CardPreview
             imageUrl={card.imageUris?.normal || card.imageUris?.large || card.imageUris?.small}
             cardName={card.name}
           >
-            <div className="font-medium text-white text-sm">
-              {card.name}
-            </div>
+            {nameElement}
           </CardPreview>
         );
       },
@@ -265,9 +297,27 @@ export function DeckAggregateTable({ cards, deckName = "Deck" }: DeckAggregateTa
       accessorKey: "manaCost",
       header: ({ column }) => <SortableHeader column={column}>Mana</SortableHeader>,
       cell: ({ row }) => {
-        const manaCost = row.original.manaCost;
-        if (!manaCost) return null;
+        const card = row.original;
+        const manaCost = card.manaCost;
         
+        // For dual-faced cards, show both costs if different
+        if (card.cardFaces && card.cardFaces.length > 1) {
+          const costs = card.cardFaces
+            .map(face => face.manaCost)
+            .filter((cost, index, self) => cost && self.indexOf(cost) === index);
+          
+          if (costs.length > 0) {
+            return (
+              <div className="flex flex-col gap-1">
+                {costs.map((cost, index) => (
+                  <ManaSymbols key={index} cost={cost} size="ms-cost" />
+                ))}
+              </div>
+            );
+          }
+        }
+        
+        if (!manaCost) return null;
         return <ManaSymbols cost={manaCost} size="ms-cost" />;
       },
     },
@@ -450,11 +500,25 @@ export function DeckAggregateTable({ cards, deckName = "Deck" }: DeckAggregateTa
     {
       accessorKey: "oracleText",
       header: "Oracle Text",
-      cell: ({ row }) => (
-        <div className="text-xs text-gray-400 max-w-xs truncate">
-          {row.original.oracleText}
-        </div>
-      ),
+      cell: ({ row }) => {
+        const card = row.original;
+        const oracleText = getCombinedOracleText(card);
+        
+        if (!oracleText) return <div className="text-xs text-gray-400">—</div>;
+        
+        return (
+          <div className="group relative">
+            <div className="text-xs text-gray-400 max-w-xs truncate">
+              {oracleText}
+            </div>
+            <div className="absolute z-10 invisible group-hover:visible bg-gray-900 border border-gray-700 rounded-lg p-3 shadow-xl -top-2 left-0 w-[400px] max-h-[300px] overflow-y-auto">
+              <div className="text-sm text-gray-100 whitespace-pre-line">
+                {oracleText}
+              </div>
+            </div>
+          </div>
+        );
+      },
     },
     {
       accessorKey: "flavorText",

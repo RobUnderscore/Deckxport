@@ -1,4 +1,5 @@
 import type { CardAggregate } from '@/types/cardAggregate';
+import { getDualFacedDisplayImage } from '@/components/ui/dual-faced-card';
 
 export interface CategoryEvaluation {
   rating: number; // 0-10
@@ -67,7 +68,7 @@ export function evaluateRamp(cards: CardAggregate[]): CategoryEvaluation {
     cards: rampCards.map(c => ({ 
       name: c.name, 
       quantity: c.quantity,
-      imageUrl: c.imageUris?.small
+      imageUrl: getDualFacedDisplayImage(c)
     })),
   };
 }
@@ -110,7 +111,7 @@ export function evaluateCardAdvantage(cards: CardAggregate[]): CategoryEvaluatio
     cards: drawCards.map(c => ({ 
       name: c.name, 
       quantity: c.quantity,
-      imageUrl: c.imageUris?.small
+      imageUrl: getDualFacedDisplayImage(c)
     })),
   };
 }
@@ -156,7 +157,7 @@ export function evaluateInteraction(cards: CardAggregate[]): CategoryEvaluation 
     cards: interactionCards.map(c => ({ 
       name: c.name, 
       quantity: c.quantity,
-      imageUrl: c.imageUris?.small
+      imageUrl: getDualFacedDisplayImage(c)
     })),
   };
 }
@@ -211,7 +212,7 @@ export function evaluateWinConditions(cards: CardAggregate[]): CategoryEvaluatio
     cards: wincons.map(c => ({ 
       name: c.name, 
       quantity: c.quantity,
-      imageUrl: c.imageUris?.small
+      imageUrl: getDualFacedDisplayImage(c)
     })),
   };
 }
@@ -260,7 +261,7 @@ export function evaluateTargetedRemoval(cards: CardAggregate[]): CategoryEvaluat
     cards: removal.map(c => ({ 
       name: c.name, 
       quantity: c.quantity,
-      imageUrl: c.imageUris?.small
+      imageUrl: getDualFacedDisplayImage(c)
     })),
   };
 }
@@ -303,7 +304,7 @@ export function evaluateBoardWipes(cards: CardAggregate[]): CategoryEvaluation {
     cards: wipes.map(c => ({ 
       name: c.name, 
       quantity: c.quantity,
-      imageUrl: c.imageUris?.small
+      imageUrl: getDualFacedDisplayImage(c)
     })),
   };
 }

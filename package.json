@@ -13,7 +13,10 @@
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
-    "test:integration": "vitest --run src/hooks/__tests__/integration.test.tsx src/hooks/__tests__/scryfall-integration.test.tsx"
+    "test:integration": "vitest --run src/hooks/__tests__/integration.test.tsx src/hooks/__tests__/scryfall-integration.test.tsx",
+    "test-scryfall": "tsx src/tools/test-scryfall.ts",
+    "test-moxfield": "tsx src/tools/test-moxfield.ts",
+    "test-dual-faced": "tsx src/tools/test-dual-faced.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.839.0",
@@ -57,6 +60,7 @@
     "postcss": "^8.4.49",
     "prettier": "^3.4.2",
     "tailwindcss": "^3.4.0",
+    "tsx": "^4.20.3",
     "typescript": "^5.7.2",
     "vite": "^5.4.19",
     "vitest": "^3.2.4"

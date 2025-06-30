@@ -1,9 +1,8 @@
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import type { MoxfieldCard, MoxfieldDeck } from '@/types/moxfield';
+import type { MoxfieldCard } from '@/types/moxfield';
 import type { Card as ScryfallCard } from '@/types/scryfall';
 import type { CardAggregate, DeckImportProgress, DeckImportResult } from '@/types/cardAggregate';
 import { fetchMoxfieldDeck } from './moxfield';
-import { fetchCardCollectionBatched, cardNamesToIdentifiers } from './scryfall';
+import { fetchCardCollectionBatched, setNumberToIdentifier, type CardIdentifier } from './scryfall';
 import { fetchOracleTagsForCardsWithTagger } from './oracleTags';
 import { cacheCardByScryfallId, getCachedCardsByNameForScryfall, cacheCardByName } from '@/utils/indexeddb';
 
@@ -115,6 +114,12 @@ function enrichWithScryfallData(
   aggregate: CardAggregate,
   scryfallCard: ScryfallCard
 ): CardAggregate {
+  // Check if this is a dual-faced card
+  const isDualFaced = scryfallCard.card_faces && scryfallCard.card_faces.length > 0;
+  
+  // For dual-faced cards, use data from the first face for main card properties
+  const primaryFace = isDualFaced ? scryfallCard.card_faces![0] : null;
+  
   return {
     ...aggregate,
     
@@ -127,19 +132,32 @@ function enrichWithScryfallData(
     setName: scryfallCard.set_name,
     collectorNumber: scryfallCard.collector_number,
     
-    // Update card details
-    manaCost: scryfallCard.mana_cost,
+    // Update card details - use face data if dual-faced
+    manaCost: primaryFace?.mana_cost ?? scryfallCard.mana_cost,
     cmc: scryfallCard.cmc,
     typeLine: scryfallCard.type_line,
-    oracleText: scryfallCard.oracle_text,
-    power: scryfallCard.power,
-    toughness: scryfallCard.toughness,
-    loyalty: scryfallCard.loyalty,
-    colors: scryfallCard.colors || [],
+    oracleText: primaryFace?.oracle_text ?? scryfallCard.oracle_text,
+    power: primaryFace?.power ?? scryfallCard.power,
+    toughness: primaryFace?.toughness ?? scryfallCard.toughness,
+    loyalty: primaryFace?.loyalty ?? scryfallCard.loyalty,
+    colors: primaryFace?.colors ?? scryfallCard.colors ?? [],
     colorIdentity: scryfallCard.color_identity || [],
     
-    // Update visual data
-    imageUris: scryfallCard.image_uris || aggregate.imageUris,
+    // Update visual data - use face data if dual-faced
+    imageUris: primaryFace?.image_uris ?? scryfallCard.image_uris ?? aggregate.imageUris,
+    
+    // Add dual-faced card specific data
+    layout: scryfallCard.layout,
+    cardFaces: isDualFaced ? scryfallCard.card_faces!.map(face => ({
+      name: face.name,
+      manaCost: face.mana_cost,
+      typeLine: face.type_line || '',
+      oracleText: face.oracle_text,
+      power: face.power,
+      toughness: face.toughness,
+      colors: face.colors?.map(c => c.toString()),
+      imageUris: face.image_uris,
+    })) : undefined,
     
     // Update market data
     prices: scryfallCard.prices ? {
@@ -154,8 +172,8 @@ function enrichWithScryfallData(
     rarity: scryfallCard.rarity as CardAggregate['rarity'],
     
     // Update metadata
-    artist: scryfallCard.artist,
-    flavorText: scryfallCard.flavor_text,
+    artist: primaryFace?.artist ?? scryfallCard.artist,
+    flavorText: primaryFace?.flavor_text ?? scryfallCard.flavor_text,
     releasedAt: scryfallCard.released_at,
     
     // Store raw data
@@ -252,9 +270,23 @@ export async function aggregateDeckData(
     
     // Fetch uncached cards if needed
     if (cardsToFetch.length > 0) {
-      // Get unique card names for fetching
-      const uniqueNamesToFetch = Array.from(new Set(cardsToFetch.map(a => a.name)));
-      const identifiers = cardNamesToIdentifiers(uniqueNamesToFetch);
+      // Create identifiers preferring set/collector number over names
+      const identifiersMap = new Map<string, CardIdentifier>();
+      
+      cardsToFetch.forEach(aggregate => {
+        if (!identifiersMap.has(aggregate.name)) {
+          // Prefer set/collector number if available (more accurate for dual-faced cards)
+          if (aggregate.set && aggregate.collectorNumber) {
+            identifiersMap.set(aggregate.name, setNumberToIdentifier(aggregate.set, aggregate.collectorNumber));
+            console.log(`🎯 Using set/number for ${aggregate.name}: ${aggregate.set}/${aggregate.collectorNumber}`);
+          } else {
+            identifiersMap.set(aggregate.name, { name: aggregate.name });
+            console.log(`📝 Using name for ${aggregate.name} (no set/number available)`);
+          }
+        }
+      });
+      
+      const identifiers = Array.from(identifiersMap.values());
       
       try {
         const scryfallResponse = await fetchCardCollectionBatched(identifiers);
@@ -326,7 +358,7 @@ export async function aggregateDeckData(
         // Fetch oracle tags in batch with caching
         const result = await fetchOracleTagsForCardsWithTagger(
           cardsForTagger.map(a => a._scryfallData!).filter(Boolean),
-          (current, total) => {
+          (current, _total) => {
             updateProgress({ 
               cardsProcessed: current,
               currentCard: cardsForTagger[Math.min(current - 1, cardsForTagger.length - 1)]?.name

@@ -51,6 +51,26 @@ export interface CardAggregate {
     border_crop?: string;
   };
   
+  // === Dual-Faced Card Data ===
+  layout?: string; // 'normal', 'transform', 'modal_dfc', etc.
+  cardFaces?: Array<{
+    name: string;
+    manaCost?: string;
+    typeLine: string;
+    oracleText?: string;
+    power?: string;
+    toughness?: string;
+    colors?: string[];
+    imageUris?: {
+      small?: string;
+      normal?: string;
+      large?: string;
+      png?: string;
+      art_crop?: string;
+      border_crop?: string;
+    };
+  }>;
+  
   // === Market Data ===
   prices?: {
     usd?: string;

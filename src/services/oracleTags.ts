@@ -134,7 +134,7 @@ export async function fetchOracleTagsForCardsWithTagger(
       console.log(`📦 Oracle tags for "${card.name}" (${cacheKey}) found in IndexedDB cache (${indexedDBCached.length} tags)`);
       
       // Add a small delay for visual progress even for cached cards
-      await new Promise(resolve => setTimeout(resolve, 20));
+      await new Promise(resolve => setTimeout(resolve, 5));
     } else {
       // Check in-memory cache
       const cached = useCache ? dynamicOracleTagCache.get(card.name) : undefined;
@@ -148,7 +148,7 @@ export async function fetchOracleTagsForCardsWithTagger(
         }
         
         // Small delay for visual progress
-        await new Promise(resolve => setTimeout(resolve, 20));
+        await new Promise(resolve => setTimeout(resolve, 5));
       } else if (!shouldStop) {
         try {
           // Get set and collector number

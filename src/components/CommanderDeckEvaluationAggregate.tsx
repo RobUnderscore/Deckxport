@@ -3,6 +3,7 @@ import { useDeckEvaluationAggregate } from "@/hooks/useDeckEvaluationAggregate";
 import { CategoryEvaluationCard } from "@/components/evaluation/CategoryEvaluationCardSimple";
 import { Shield, Zap, Swords, Target, Gem, Layers } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { DualFacedCardPreview, DualFacedIndicator, getCombinedOracleText, getDualFacedDisplayImage } from "@/components/ui/dual-faced-card";
 
 interface CommanderDeckEvaluationProps {
   cards: CardAggregate[];
@@ -39,22 +40,50 @@ export function CommanderDeckEvaluation({ cards }: CommanderDeckEvaluationProps)
         <h2 className="text-2xl font-bold mb-4">Commander Analysis</h2>
         {commanders.length > 0 ? (
           <div className="space-y-4">
-            {commanders.map((commander, index) => (
-              <div key={index} className="flex items-start gap-4">
-                {commander.imageUris?.small && (
-                  <img 
-                    src={commander.imageUris.small} 
-                    alt={commander.name}
-                    className="w-24 h-32 rounded-md object-cover"
-                  />
-                )}
-                <div>
-                  <h3 className="text-lg font-semibold">{commander.name}</h3>
-                  <p className="text-muted-foreground">{commander.typeLine}</p>
-                  <p className="text-sm mt-2">{commander.oracleText}</p>
+            {commanders.map((commander, index) => {
+              const imageUrl = getDualFacedDisplayImage(commander);
+              const oracleText = getCombinedOracleText(commander);
+              const isDualFaced = commander.cardFaces && commander.cardFaces.length > 1;
+              
+              return (
+                <div key={index} className="flex items-start gap-4">
+                  {imageUrl && (
+                    isDualFaced ? (
+                      <DualFacedCardPreview card={commander}>
+                        <img 
+                          src={imageUrl} 
+                          alt={commander.name}
+                          className="w-24 h-32 rounded-md object-cover cursor-pointer"
+                        />
+                      </DualFacedCardPreview>
+                    ) : (
+                      <img 
+                        src={imageUrl} 
+                        alt={commander.name}
+                        className="w-24 h-32 rounded-md object-cover"
+                      />
+                    )
+                  )}
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-lg font-semibold">{commander.name}</h3>
+                      {isDualFaced && <DualFacedIndicator card={commander} />}
+                    </div>
+                    <p className="text-muted-foreground">{commander.typeLine}</p>
+                    <p className="text-sm mt-2 whitespace-pre-line">{oracleText}</p>
+                    {commander.oracleTags.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-1">
+                        {commander.oracleTags.map((tag, i) => (
+                          <span key={i} className="text-xs px-2 py-0.5 bg-purple-500/20 text-purple-300 rounded">
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         ) : (
           <p className="text-muted-foreground">No commander found in this deck</p>
