@@ -86,7 +86,7 @@ export interface CardAggregate {
  * Progress tracking for deck import process
  */
 export interface DeckImportProgress {
-  stage: 'idle' | 'moxfield' | 'scryfall' | 'tagger' | 'complete' | 'error';
+  stage: 'idle' | 'moxfield' | 'moxfield-processing' | 'scryfall-batch' | 'scryfall' | 'tagger' | 'complete' | 'error';
   currentCard?: string;
   cardsProcessed: number;
   totalCards: number;

@@ -225,6 +225,8 @@ describe('Scryfall Hooks', () => {
         totalOracleTags: 50,
         validOracleTags: 40,
         expiredOracleTags: 10,
+        scryfallSetCacheCount: 30,
+        scryfallIdCacheCount: 40,
       };
 
       vi.mocked(getCacheStats).mockResolvedValueOnce(mockStats);

@@ -7,6 +7,7 @@ const BULK_META_STORE = 'bulkMeta';
 const ORACLE_TAGS_STORE = 'oracleTags';
 const CACHE_DURATION_MS = 24 * 60 * 60 * 1000; // 24 hours
 const ORACLE_TAGS_CACHE_DURATION_MS = 12 * 60 * 60 * 1000; // 12 hours for oracle tags
+const SCRYFALL_SET_CACHE_DURATION_MS = 12 * 60 * 60 * 1000; // 12 hours for set/number lookups
 
 export interface CachedCard extends Card {
   _cachedAt: number;
@@ -208,6 +209,83 @@ export async function getCachedCardsByName(names: string[]): Promise<Map<string,
   return results;
 }
 
+// Get cached cards by name (12-hour cache) - returns Card objects
+export async function getCachedCardsByNameForScryfall(names: string[]): Promise<Map<string, Card>> {
+  console.log(`🔍 Looking up ${names.length} cards by name in cache`);
+  
+  const db = await openDB();
+  const transaction = db.transaction([CARD_STORE], 'readonly');
+  const store = transaction.objectStore(CARD_STORE);
+
+  const results = new Map<string, Card>();
+  let foundCount = 0;
+  let expiredCount = 0;
+
+  // First try to get cards by the name_ prefix
+  await Promise.all(
+    names.map(name =>
+      new Promise<void>((resolve, reject) => {
+        const nameKey = `name_${name}`;
+        const request = store.get(nameKey);
+        request.onsuccess = () => {
+          const cachedCard = request.result as (CachedCard & { _originalId?: string }) | undefined;
+          if (cachedCard) {
+            if (isCacheValid(cachedCard._cachedAt, SCRYFALL_SET_CACHE_DURATION_MS)) {
+              // Restore original ID if it was stored
+              const { _cachedAt, _originalId, ...card } = cachedCard;
+              if (_originalId) {
+                card.id = _originalId;
+              }
+              results.set(name, card as Card);
+              foundCount++;
+            } else {
+              expiredCount++;
+            }
+          }
+          resolve();
+        };
+        request.onerror = () => reject(request.error);
+      })
+    )
+  );
+
+  // If we didn't find cards with name_ prefix, try the index
+  const notFoundNames = names.filter(name => !results.has(name));
+  if (notFoundNames.length > 0) {
+    const index = store.index('name');
+    await Promise.all(
+      notFoundNames.map(name =>
+        new Promise<void>((resolve, reject) => {
+          const request = index.getAll(name);
+          request.onsuccess = () => {
+            const cards = request.result as CachedCard[];
+            // Get the most recently cached valid card
+            const validCard = cards
+              .filter((card) => isCacheValid(card._cachedAt, SCRYFALL_SET_CACHE_DURATION_MS))
+              .sort((a, b) => b._cachedAt - a._cachedAt)[0];
+
+            if (validCard) {
+              const { _cachedAt, ...card } = validCard;
+              results.set(name, card as Card);
+              foundCount++;
+            }
+            resolve();
+          };
+          request.onerror = () => reject(request.error);
+        })
+      )
+    );
+  }
+
+  db.close();
+  console.log(
+    `📊 Card name cache: Found ${foundCount} valid entries, ${expiredCount} expired, ${
+      names.length - foundCount - expiredCount
+    } missing`
+  );
+  return results;
+}
+
 // Save bulk metadata
 export async function saveBulkMetadata(metadata: BulkMetadata): Promise<void> {
   const db = await openDB();
@@ -282,6 +360,8 @@ export async function getCacheStats(): Promise<{
   totalOracleTags: number;
   validOracleTags: number;
   expiredOracleTags: number;
+  scryfallSetCacheCount: number;
+  scryfallIdCacheCount: number;
 }> {
   const db = await openDB();
   
@@ -295,12 +375,16 @@ export async function getCacheStats(): Promise<{
     expiredCards: number;
     oldestCard: number | null;
     newestCard: number | null;
+    scryfallSetCacheCount: number;
+    scryfallIdCacheCount: number;
   }>((resolve, reject) => {
     let totalCards = 0;
     let validCards = 0;
     let expiredCards = 0;
     let oldestCard: number | null = null;
     let newestCard: number | null = null;
+    let scryfallSetCacheCount = 0;
+    let scryfallIdCacheCount = 0;
 
     const request = cardStore.openCursor();
 
@@ -308,6 +392,18 @@ export async function getCacheStats(): Promise<{
       const cursor = request.result;
       if (cursor) {
         const card = cursor.value as CachedCard;
+        const key = cursor.key as string;
+        
+        // Count different types of cache entries
+        if (key && typeof key === 'string') {
+          if (key.startsWith('scryfall_')) {
+            scryfallSetCacheCount++;
+          } else if (key.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+            // UUID format for Scryfall IDs
+            scryfallIdCacheCount++;
+          }
+        }
+        
         totalCards++;
 
         if (isCacheValid(card._cachedAt)) {
@@ -325,7 +421,7 @@ export async function getCacheStats(): Promise<{
 
         cursor.continue();
       } else {
-        resolve({ totalCards, validCards, expiredCards, oldestCard, newestCard });
+        resolve({ totalCards, validCards, expiredCards, oldestCard, newestCard, scryfallSetCacheCount, scryfallIdCacheCount });
       }
     };
 
@@ -467,6 +563,285 @@ export async function getCachedOracleTagsForCards(cacheKeys: string[]): Promise<
 
   db.close();
   console.log(`📊 IndexedDB: Found ${foundCount} valid entries, ${expiredCount} expired, ${cacheKeys.length - foundCount - expiredCount} missing`);
+  return results;
+}
+
+// Helper to generate cache key for set/collector number
+function getScryfallSetCacheKey(set: string, collectorNumber: string): string {
+  return `scryfall_${set}_${collectorNumber}`;
+}
+
+// Cache a card by Scryfall ID (with 12-hour duration)
+export async function cacheCardByScryfallId(card: Card): Promise<void> {
+  const db = await openDB();
+  const transaction = db.transaction([CARD_STORE], 'readwrite');
+  const store = transaction.objectStore(CARD_STORE);
+
+  const cachedCard: CachedCard = {
+    ...card,
+    _cachedAt: Date.now(),
+  };
+
+  console.log(`🔑 Caching card with ID: ${card.id}, name: ${card.name}`);
+
+  await new Promise<void>((resolve, reject) => {
+    const request = store.put(cachedCard);
+    request.onsuccess = () => {
+      console.log(`✅ Cached Scryfall card by ID: ${card.id}`);
+      resolve();
+    };
+    request.onerror = () => {
+      console.error(`❌ Failed to cache card: ${card.id}`, request.error);
+      reject(request.error);
+    };
+  });
+
+  db.close();
+}
+
+// Cache a card by name (creates a secondary cache entry)
+export async function cacheCardByName(card: Card): Promise<void> {
+  const db = await openDB();
+  const transaction = db.transaction([CARD_STORE], 'readwrite');
+  const store = transaction.objectStore(CARD_STORE);
+
+  // Create a cache entry with name as key
+  const nameKey = `name_${card.name}`;
+  const cachedCard: CachedCard = {
+    ...card,
+    id: nameKey, // Override ID to use name as key
+    _cachedAt: Date.now(),
+    _originalId: card.id, // Preserve original Scryfall ID
+  } as CachedCard & { _originalId?: string };
+
+  console.log(`📝 Caching card by name: ${card.name} (original ID: ${card.id})`);
+
+  await new Promise<void>((resolve, reject) => {
+    const request = store.put(cachedCard);
+    request.onsuccess = () => {
+      console.log(`✅ Cached card by name: ${card.name}`);
+      resolve();
+    };
+    request.onerror = () => {
+      console.error(`❌ Failed to cache card by name: ${card.name}`, request.error);
+      reject(request.error);
+    };
+  });
+
+  db.close();
+}
+
+// Get a cached card by Scryfall ID
+export async function getCachedCardByScryfallId(scryfallId: string): Promise<Card | null> {
+  console.log(`🔍 Looking up Scryfall ID in cache: ${scryfallId}`);
+  
+  const db = await openDB();
+  const transaction = db.transaction([CARD_STORE], 'readonly');
+  const store = transaction.objectStore(CARD_STORE);
+
+  const cachedCard = await new Promise<CachedCard | null>((resolve, reject) => {
+    const request = store.get(scryfallId);
+    request.onsuccess = () => {
+      const result = request.result;
+      if (!result) {
+        console.log(`❌ No cached entry for Scryfall ID: ${scryfallId}`);
+      } else {
+        console.log(`✅ Found entry in IndexedDB for ID: ${scryfallId}, cached at: ${new Date(result._cachedAt).toISOString()}`);
+      }
+      resolve(result || null);
+    };
+    request.onerror = () => {
+      console.error(`❌ Error looking up Scryfall ID: ${scryfallId}`, request.error);
+      reject(request.error);
+    };
+  });
+
+  db.close();
+
+  if (cachedCard && !isCacheValid(cachedCard._cachedAt, SCRYFALL_SET_CACHE_DURATION_MS)) {
+    console.log(`⏰ Scryfall cache expired for ID: ${scryfallId}`);
+    return null;
+  }
+
+  if (cachedCard) {
+    console.log(`📦 Found cached Scryfall card by ID: ${scryfallId}`);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { _cachedAt, ...card } = cachedCard;
+    return card as Card;
+  }
+
+  return null;
+}
+
+// Get multiple cached cards by Scryfall IDs
+export async function getCachedCardsByScryfallIds(
+  scryfallIds: string[]
+): Promise<Map<string, Card>> {
+  console.log(`🔍 Looking up ${scryfallIds.length} Scryfall cards by ID`);
+  
+  const db = await openDB();
+  const transaction = db.transaction([CARD_STORE], 'readonly');
+  const store = transaction.objectStore(CARD_STORE);
+
+  const results = new Map<string, Card>();
+  let foundCount = 0;
+  let expiredCount = 0;
+
+  await Promise.all(
+    scryfallIds.map((id) =>
+      new Promise<void>((resolve, reject) => {
+        const request = store.get(id);
+        request.onsuccess = () => {
+          const cachedCard = request.result as CachedCard | undefined;
+          if (cachedCard) {
+            if (isCacheValid(cachedCard._cachedAt, SCRYFALL_SET_CACHE_DURATION_MS)) {
+              // eslint-disable-next-line @typescript-eslint/no-unused-vars
+              const { _cachedAt, ...card } = cachedCard;
+              results.set(id, card as Card);
+              foundCount++;
+            } else {
+              expiredCount++;
+            }
+          }
+          resolve();
+        };
+        request.onerror = () => reject(request.error);
+      })
+    )
+  );
+
+  db.close();
+  console.log(
+    `📊 Scryfall cache: Found ${foundCount} valid entries, ${expiredCount} expired, ${
+      scryfallIds.length - foundCount - expiredCount
+    } missing`
+  );
+  return results;
+}
+
+// Cache a card by set and collector number (kept for backwards compatibility)
+export async function cacheCardBySetNumber(card: Card): Promise<void> {
+  if (!card.set || !card.collector_number) {
+    console.warn('Card missing set or collector_number, cannot cache by set/number');
+    return;
+  }
+
+  const db = await openDB();
+  const transaction = db.transaction([CARD_STORE], 'readwrite');
+  const store = transaction.objectStore(CARD_STORE);
+
+  const cacheKey = getScryfallSetCacheKey(card.set, card.collector_number);
+  
+  // Store the card with our cache key as ID
+  // We'll store the original scryfall ID in the card data itself
+  const cachedCard: CachedCard = {
+    ...card,
+    id: cacheKey, // Use our cache key as the primary key
+    _cachedAt: Date.now(),
+    _originalId: card.id, // Preserve the original Scryfall ID
+  } as CachedCard & { _originalId?: string };
+
+  await new Promise<void>((resolve, reject) => {
+    const request = store.put(cachedCard);
+    request.onsuccess = () => {
+      console.log(`✅ Cached Scryfall card by set/number: ${cacheKey}`);
+      resolve();
+    };
+    request.onerror = () => reject(request.error);
+  });
+
+  db.close();
+}
+
+// Get a cached card by set and collector number
+export async function getCachedCardBySetNumber(
+  set: string,
+  collectorNumber: string
+): Promise<Card | null> {
+  const cacheKey = getScryfallSetCacheKey(set, collectorNumber);
+  const db = await openDB();
+  const transaction = db.transaction([CARD_STORE], 'readonly');
+  const store = transaction.objectStore(CARD_STORE);
+
+  const cachedCard = await new Promise<CachedCard | null>((resolve, reject) => {
+    const request = store.get(cacheKey);
+    request.onsuccess = () => resolve(request.result || null);
+    request.onerror = () => reject(request.error);
+  });
+
+  db.close();
+
+  if (cachedCard && !isCacheValid(cachedCard._cachedAt, SCRYFALL_SET_CACHE_DURATION_MS)) {
+    console.log(`⏰ Scryfall cache expired for ${cacheKey}`);
+    return null;
+  }
+
+  if (cachedCard) {
+    console.log(`📦 Found cached Scryfall card: ${cacheKey}`);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { _cachedAt, _originalId, ...card } = cachedCard as CachedCard & { _originalId?: string };
+    
+    // Restore original ID if it was stored
+    if (_originalId) {
+      card.id = _originalId;
+    }
+    
+    return card as Card;
+  }
+
+  return null;
+}
+
+// Get multiple cached cards by set/number pairs
+export async function getCachedCardsBySetNumbers(
+  cards: Array<{ set: string; collectorNumber: string }>
+): Promise<Map<string, Card>> {
+  console.log(`🔍 Looking up ${cards.length} Scryfall cards by set/number`);
+  
+  const db = await openDB();
+  const transaction = db.transaction([CARD_STORE], 'readonly');
+  const store = transaction.objectStore(CARD_STORE);
+
+  const results = new Map<string, Card>();
+  let foundCount = 0;
+  let expiredCount = 0;
+
+  await Promise.all(
+    cards.map(({ set, collectorNumber }) =>
+      new Promise<void>((resolve, reject) => {
+        const cacheKey = getScryfallSetCacheKey(set, collectorNumber);
+        const request = store.get(cacheKey);
+        request.onsuccess = () => {
+          const cachedCard = request.result as CachedCard | undefined;
+          if (cachedCard) {
+            if (isCacheValid(cachedCard._cachedAt, SCRYFALL_SET_CACHE_DURATION_MS)) {
+              // eslint-disable-next-line @typescript-eslint/no-unused-vars
+              const { _cachedAt, _originalId, ...card } = cachedCard as CachedCard & { _originalId?: string };
+              
+              // Restore original ID if it was stored
+              if (_originalId) {
+                card.id = _originalId;
+              }
+              
+              results.set(cacheKey, card as Card);
+              foundCount++;
+            } else {
+              expiredCount++;
+            }
+          }
+          resolve();
+        };
+        request.onerror = () => reject(request.error);
+      })
+    )
+  );
+
+  db.close();
+  console.log(
+    `📊 Scryfall cache: Found ${foundCount} valid entries, ${expiredCount} expired, ${
+      cards.length - foundCount - expiredCount
+    } missing`
+  );
   return results;
 }
 

@@ -5,6 +5,7 @@ import type { CardAggregate, DeckImportProgress, DeckImportResult } from '@/type
 import { fetchMoxfieldDeck } from './moxfield';
 import { fetchCardCollectionBatched, cardNamesToIdentifiers } from './scryfall';
 import { fetchOracleTagsForCardsWithTagger } from './oracleTags';
+import { cacheCardByScryfallId, getCachedCardsByNameForScryfall, cacheCardByName } from '@/utils/indexeddb';
 
 // Note: Rate limiting is now handled by the backend R2 cache proxy
 
@@ -17,6 +18,28 @@ function createInitialAggregate(
 ): CardAggregate {
   const cardData = moxfieldCard.card;
   
+  // Debug logging to understand the structure
+  if (cardData?.name === 'Lightning Bolt' || cardData?.name === 'Sol Ring') {
+    console.log(`🔍 Moxfield data for ${cardData.name}:`, {
+      card_id: cardData?.id,
+      set: moxfieldCard.set || cardData?.set,
+      cn: moxfieldCard.cn || cardData?.cn,
+      scryfall_uri: cardData?.scryfall_uri,
+      full_card: cardData
+    });
+  }
+  
+  // Check all possible locations for set/collector info
+  const set = moxfieldCard.set || cardData?.set || '';
+  const collectorNumber = moxfieldCard.cn || moxfieldCard.collectorNumber || cardData?.cn || cardData?.collectorNumber || '';
+  
+  // Check if the ID looks like a Scryfall ID (UUID format)
+  const isValidScryfallId = (id: string | undefined): boolean => {
+    if (!id) return false;
+    // UUID regex pattern
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+  };
+  
   return {
     // Identity
     id: cardData?.id || `${board}-${cardData?.name || 'unknown'}-${Date.now()}`,
@@ -24,13 +47,13 @@ function createInitialAggregate(
     
     // Source references
     moxfieldId: cardData?.id || `moxfield-${Date.now()}`,
-    scryfallId: cardData?.id,
+    scryfallId: isValidScryfallId(cardData?.id) ? cardData?.id : undefined, // Only set if it's a valid UUID
     oracleId: undefined, // Will be populated from Scryfall
     
-    // Set information (may be incomplete from Moxfield)
-    set: moxfieldCard.set || cardData?.set || '',
+    // Set information (use values we already extracted)
+    set,
     setName: moxfieldCard.setName || cardData?.setName || '',
-    collectorNumber: moxfieldCard.collectorNumber || cardData?.collectorNumber || '',
+    collectorNumber,
     
     // Deck information
     quantity: moxfieldCard.quantity,
@@ -165,6 +188,11 @@ export async function aggregateDeckData(
     updateProgress({ stage: 'moxfield' });
     const moxfieldDeck = await fetchMoxfieldDeck(deckId);
     
+    // === Stage 1.5: Process deck structure ===
+    updateProgress({ stage: 'moxfield-processing' });
+    // Small delay to show the stage transition
+    await new Promise(resolve => setTimeout(resolve, 200));
+    
     // Extract all cards into aggregates
     const aggregates: CardAggregate[] = [];
     
@@ -193,49 +221,86 @@ export async function aggregateDeckData(
       cardsProcessed: 0 
     });
     
-    // === Stage 2: Enrich with Scryfall data ===
-    updateProgress({ stage: 'scryfall' });
+    // === Stage 2: Batch fetch Scryfall data ===
+    updateProgress({ stage: 'scryfall-batch' });
+    // Small delay to show the stage transition
+    await new Promise(resolve => setTimeout(resolve, 200));
     
-    // Get unique card names
-    const uniqueNames = Array.from(new Set(aggregates.map(a => a.name)));
-    const identifiers = cardNamesToIdentifiers(uniqueNames);
+    // First, check cache by card names since Moxfield doesn't provide Scryfall IDs
+    const uniqueCardNames = Array.from(new Set(aggregates.map(a => a.name)));
+    console.log(`🔍 Checking cache for ${uniqueCardNames.length} unique card names`);
     
-    try {
-      const scryfallResponse = await fetchCardCollectionBatched(identifiers);
+    const cachedCardsByName = await getCachedCardsByNameForScryfall(uniqueCardNames);
+    
+    // Build a map of all cards we have (cached + need to fetch)
+    const scryfallMap = new Map<string, ScryfallCard>();
+    const cardsToFetch: CardAggregate[] = [];
+    
+    // Check which cards we have in cache
+    aggregates.forEach(aggregate => {
+      const cached = cachedCardsByName.get(aggregate.name);
+      if (cached) {
+        console.log(`✅ Cache hit for ${aggregate.name}`);
+        scryfallMap.set(aggregate.name, cached);
+      } else {
+        console.log(`❌ Cache miss for ${aggregate.name}`);
+        cardsToFetch.push(aggregate);
+      }
+    });
+    
+    console.log(`📦 Using ${scryfallMap.size} cached cards, fetching ${cardsToFetch.length} from API`);
+    
+    // Fetch uncached cards if needed
+    if (cardsToFetch.length > 0) {
+      // Get unique card names for fetching
+      const uniqueNamesToFetch = Array.from(new Set(cardsToFetch.map(a => a.name)));
+      const identifiers = cardNamesToIdentifiers(uniqueNamesToFetch);
       
-      // Create a map for easy lookup
-      const scryfallMap = new Map<string, ScryfallCard>();
-      scryfallResponse.data.forEach(card => {
-        scryfallMap.set(card.name, card);
-      });
-      
-      // Enrich aggregates with Scryfall data
-      for (let i = 0; i < aggregates.length; i++) {
-        const scryfallCard = scryfallMap.get(aggregates[i].name);
-        if (scryfallCard) {
-          aggregates[i] = enrichWithScryfallData(aggregates[i], scryfallCard);
-        } else {
-          errors.push({
-            cardName: aggregates[i].name,
-            stage: 'scryfall',
-            error: 'Card not found on Scryfall',
-          });
-        }
+      try {
+        const scryfallResponse = await fetchCardCollectionBatched(identifiers);
         
-        updateProgress({ 
-          cardsProcessed: i + 1,
-          currentCard: aggregates[i].name 
+        // Add fetched cards to map and cache them
+        for (const card of scryfallResponse.data) {
+          scryfallMap.set(card.name, card);
+          
+          // Cache by both Scryfall ID and name for future lookups
+          await cacheCardByScryfallId(card);
+          await cacheCardByName(card);
+        }
+      } catch (error) {
+        errors.push({
+          cardName: 'Batch request',
+          stage: 'scryfall',
+          error: error instanceof Error ? error.message : 'Failed to fetch Scryfall data',
         });
       }
-    } catch (error) {
-      errors.push({
-        cardName: 'Batch request',
-        stage: 'scryfall',
-        error: error instanceof Error ? error.message : 'Failed to fetch Scryfall data',
+    }
+    
+    // === Stage 3: Enrich individual cards with Scryfall data ===
+    updateProgress({ stage: 'scryfall' });
+    // Small delay to show the stage transition
+    await new Promise(resolve => setTimeout(resolve, 200));
+    
+    // Enrich aggregates with Scryfall data
+    for (let i = 0; i < aggregates.length; i++) {
+      const scryfallCard = scryfallMap.get(aggregates[i].name);
+      if (scryfallCard) {
+        aggregates[i] = enrichWithScryfallData(aggregates[i], scryfallCard);
+      } else {
+        errors.push({
+          cardName: aggregates[i].name,
+          stage: 'scryfall',
+          error: 'Card not found on Scryfall',
+        });
+      }
+      
+      updateProgress({ 
+        cardsProcessed: i + 1,
+        currentCard: aggregates[i].name 
       });
     }
     
-    // === Stage 3: Fetch Tagger tags (with caching) ===
+    // === Stage 4: Fetch Tagger tags (with caching) ===
     updateProgress({ 
       stage: 'tagger',
       cardsProcessed: 0 
@@ -243,10 +308,10 @@ export async function aggregateDeckData(
     
     // Filter cards that have set and collector number
     const cardsForTagger = aggregates.filter(a => a.set && a.collectorNumber);
-    const cardsWithoutSetInfo = aggregates.filter(a => !a.set || !a.collectorNumber);
+    const cardsWithoutSetInfoForTagger = aggregates.filter(a => !a.set || !a.collectorNumber);
     
     // Mark cards without set info as errors
-    cardsWithoutSetInfo.forEach(aggregate => {
+    cardsWithoutSetInfoForTagger.forEach(aggregate => {
       aggregate.taggerFetched = true;
       aggregate.taggerError = 'Missing set or collector number';
       errors.push({

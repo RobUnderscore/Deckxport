@@ -26,16 +26,41 @@ export default function DeckAggregateImport() {
   };
 
   const getProgressPercentage = () => {
-    if (!progress || progress.totalCards === 0) return 0;
-    return (progress.cardsProcessed / progress.totalCards) * 100;
+    if (!progress) return 0;
+    
+    // Different progress calculation based on stage
+    switch (progress.stage) {
+      case 'moxfield':
+        return 10; // Initial fetch
+      case 'moxfield-processing':
+        return 20; // Processing deck structure
+      case 'scryfall-batch':
+        return 30; // Batch fetching
+      case 'scryfall':
+        // 30-60% for individual card processing
+        if (progress.totalCards === 0) return 30;
+        return 30 + (progress.cardsProcessed / progress.totalCards) * 30;
+      case 'tagger':
+        // 60-100% for oracle tags
+        if (progress.totalCards === 0) return 60;
+        return 60 + (progress.cardsProcessed / progress.totalCards) * 40;
+      case 'complete':
+        return 100;
+      default:
+        return 0;
+    }
   };
 
   const getStageLabel = (stage: DeckImportProgress['stage']) => {
     switch (stage) {
       case 'moxfield':
-        return 'Fetching deck from Moxfield...';
+        return 'Retrieving deck from Moxfield...';
+      case 'moxfield-processing':
+        return 'Processing deck structure...';
+      case 'scryfall-batch':
+        return 'Retrieving card information from Scryfall...';
       case 'scryfall':
-        return 'Loading card data and images...';
+        return 'Loading individual card details...';
       case 'tagger':
         return 'Fetching oracle tags...';
       case 'complete':
@@ -101,7 +126,11 @@ export default function DeckAggregateImport() {
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium">{getStageLabel(progress.stage)}</span>
             <span className="text-sm text-muted-foreground">
-              {progress.cardsProcessed} / {progress.totalCards} cards
+              {progress.stage === 'moxfield' || progress.stage === 'moxfield-processing' || progress.stage === 'scryfall-batch' ? (
+                'Preparing...'
+              ) : (
+                `${progress.cardsProcessed} / ${progress.totalCards} cards`
+              )}
             </span>
           </div>
           <Progress value={getProgressPercentage()} className="h-2" />
@@ -110,10 +139,15 @@ export default function DeckAggregateImport() {
               Processing: {progress.currentCard}
             </p>
           )}
+          {progress.stage === 'scryfall-batch' && (
+            <p className="text-xs text-muted-foreground">
+              Fetching card data in batches for optimal performance...
+            </p>
+          )}
           {progress.stage === 'tagger' && (
             <p className="text-xs text-muted-foreground flex items-center gap-1">
               <Tag className="h-3 w-3" />
-              Fetching oracle tags one card at a time to respect API limits...
+              Fetching oracle tags with cached results for faster loading...
             </p>
           )}
         </div>

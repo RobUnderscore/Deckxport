@@ -79,6 +79,7 @@ export interface MoxfieldCard {
   set?: string; // Set code
   setName?: string;
   collectorNumber?: string;
+  cn?: string; // Collector number (abbreviated field from API)
 
   // User customization
   tags?: string[];
@@ -102,6 +103,8 @@ export interface MoxfieldCardData {
   set: string;
   setName: string;
   collectorNumber: string;
+  cn?: string; // Alternative collector number field
+  scryfall_uri?: string; // Scryfall URI containing set and collector number
   rarity: string;
   color_identity: string[];
   mana_cost?: string;
