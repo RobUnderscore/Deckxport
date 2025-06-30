@@ -1,10 +1,12 @@
 import type { Card } from '@/types/scryfall';
 
 const DB_NAME = 'DeckxportCache';
-const DB_VERSION = 1;
+const DB_VERSION = 3; // Incremented for oracle tags store key change
 const CARD_STORE = 'cards';
 const BULK_META_STORE = 'bulkMeta';
+const ORACLE_TAGS_STORE = 'oracleTags';
 const CACHE_DURATION_MS = 24 * 60 * 60 * 1000; // 24 hours
+const ORACLE_TAGS_CACHE_DURATION_MS = 12 * 60 * 60 * 1000; // 12 hours for oracle tags
 
 export interface CachedCard extends Card {
   _cachedAt: number;
@@ -17,15 +19,28 @@ export interface BulkMetadata {
   updateUri: string;
 }
 
+export interface CachedOracleTags {
+  cacheKey: string; // Format: "set_number" e.g. "tdc_312"
+  cardName: string; // Human-readable name for reference
+  tags: string[];
+  _cachedAt: number;
+}
+
 // Open IndexedDB connection
 async function openDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
 
-    request.onerror = () => reject(request.error);
-    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => {
+      console.error('❌ Failed to open IndexedDB:', request.error);
+      reject(request.error);
+    };
+    request.onsuccess = () => {
+      resolve(request.result);
+    };
 
     request.onupgradeneeded = (event) => {
+      console.log(`🔧 IndexedDB upgrade needed from v${event.oldVersion} to v${event.newVersion}`);
       const db = (event.target as IDBOpenDBRequest).result;
 
       // Create cards store with indexes
@@ -39,6 +54,19 @@ async function openDB(): Promise<IDBDatabase> {
       // Create bulk metadata store
       if (!db.objectStoreNames.contains(BULK_META_STORE)) {
         db.createObjectStore(BULK_META_STORE, { keyPath: 'type' });
+      }
+
+      // Handle oracle tags store - delete old version if it exists with wrong key
+      if (event.oldVersion < 3 && db.objectStoreNames.contains(ORACLE_TAGS_STORE)) {
+        console.log('🗑️ Deleting old oracle tags store with wrong key structure');
+        db.deleteObjectStore(ORACLE_TAGS_STORE);
+      }
+      
+      // Create oracle tags store with correct key
+      if (!db.objectStoreNames.contains(ORACLE_TAGS_STORE)) {
+        console.log('📦 Creating oracle tags store with cacheKey as primary key');
+        const oracleStore = db.createObjectStore(ORACLE_TAGS_STORE, { keyPath: 'cacheKey' });
+        oracleStore.createIndex('_cachedAt', '_cachedAt', { unique: false });
       }
     };
   });
@@ -251,12 +279,17 @@ export async function getCacheStats(): Promise<{
   expiredCards: number;
   oldestCard: number | null;
   newestCard: number | null;
+  totalOracleTags: number;
+  validOracleTags: number;
+  expiredOracleTags: number;
 }> {
   const db = await openDB();
-  const transaction = db.transaction([CARD_STORE], 'readonly');
-  const store = transaction.objectStore(CARD_STORE);
+  
+  // Get card stats
+  const cardTransaction = db.transaction([CARD_STORE], 'readonly');
+  const cardStore = cardTransaction.objectStore(CARD_STORE);
 
-  const stats = await new Promise<{
+  const cardStats = await new Promise<{
     totalCards: number;
     validCards: number;
     expiredCards: number;
@@ -269,7 +302,7 @@ export async function getCacheStats(): Promise<{
     let oldestCard: number | null = null;
     let newestCard: number | null = null;
 
-    const request = store.openCursor();
+    const request = cardStore.openCursor();
 
     request.onsuccess = () => {
       const cursor = request.result;
@@ -299,6 +332,173 @@ export async function getCacheStats(): Promise<{
     request.onerror = () => reject(request.error);
   });
 
+  // Get oracle tags stats
+  const oracleTransaction = db.transaction([ORACLE_TAGS_STORE], 'readonly');
+  const oracleStore = oracleTransaction.objectStore(ORACLE_TAGS_STORE);
+
+  const oracleStats = await new Promise<{
+    totalOracleTags: number;
+    validOracleTags: number;
+    expiredOracleTags: number;
+  }>((resolve, reject) => {
+    let totalOracleTags = 0;
+    let validOracleTags = 0;
+    let expiredOracleTags = 0;
+
+    const request = oracleStore.openCursor();
+
+    request.onsuccess = () => {
+      const cursor = request.result;
+      if (cursor) {
+        const tags = cursor.value as CachedOracleTags;
+        totalOracleTags++;
+
+        if (isCacheValid(tags._cachedAt, ORACLE_TAGS_CACHE_DURATION_MS)) {
+          validOracleTags++;
+        } else {
+          expiredOracleTags++;
+        }
+
+        cursor.continue();
+      } else {
+        resolve({ totalOracleTags, validOracleTags, expiredOracleTags });
+      }
+    };
+
+    request.onerror = () => reject(request.error);
+  });
+
   db.close();
-  return stats;
+  
+  return {
+    ...cardStats,
+    ...oracleStats
+  };
+}
+
+// Cache oracle tags for a card
+export async function cacheOracleTags(cacheKey: string, cardName: string, tags: string[]): Promise<void> {
+  console.log(`🗄️ IndexedDB: Storing oracle tags for ${cacheKey} (${cardName})`);
+  
+  const db = await openDB();
+  const transaction = db.transaction([ORACLE_TAGS_STORE], 'readwrite');
+  const store = transaction.objectStore(ORACLE_TAGS_STORE);
+
+  const cachedTags: CachedOracleTags = {
+    cacheKey,
+    cardName,
+    tags,
+    _cachedAt: Date.now(),
+  };
+
+  await new Promise<void>((resolve, reject) => {
+    const request = store.put(cachedTags);
+    request.onsuccess = () => {
+      console.log(`✅ IndexedDB: Successfully stored ${cacheKey}`);
+      resolve();
+    };
+    request.onerror = () => {
+      console.error(`❌ IndexedDB: Failed to store ${cacheKey}:`, request.error);
+      reject(request.error);
+    };
+  });
+
+  db.close();
+}
+
+// Get cached oracle tags for a card
+export async function getCachedOracleTags(cacheKey: string): Promise<string[] | null> {
+  const db = await openDB();
+  const transaction = db.transaction([ORACLE_TAGS_STORE], 'readonly');
+  const store = transaction.objectStore(ORACLE_TAGS_STORE);
+
+  const cached = await new Promise<CachedOracleTags | null>((resolve, reject) => {
+    const request = store.get(cacheKey);
+    request.onsuccess = () => resolve(request.result || null);
+    request.onerror = () => reject(request.error);
+  });
+
+  db.close();
+
+  if (cached && !isCacheValid(cached._cachedAt, ORACLE_TAGS_CACHE_DURATION_MS)) {
+    return null;
+  }
+
+  return cached?.tags || null;
+}
+
+// Get cached oracle tags for multiple cards
+export async function getCachedOracleTagsForCards(cacheKeys: string[]): Promise<Map<string, string[]>> {
+  console.log(`🔍 IndexedDB: Looking up ${cacheKeys.length} oracle tag entries`);
+  
+  const db = await openDB();
+  const transaction = db.transaction([ORACLE_TAGS_STORE], 'readonly');
+  const store = transaction.objectStore(ORACLE_TAGS_STORE);
+
+  const results = new Map<string, string[]>();
+  let foundCount = 0;
+  let expiredCount = 0;
+
+  await Promise.all(
+    cacheKeys.map(
+      (cacheKey) =>
+        new Promise<void>((resolve, reject) => {
+          const request = store.get(cacheKey);
+          request.onsuccess = () => {
+            const cached = request.result as CachedOracleTags | undefined;
+            if (cached) {
+              if (isCacheValid(cached._cachedAt, ORACLE_TAGS_CACHE_DURATION_MS)) {
+                results.set(cacheKey, cached.tags);
+                foundCount++;
+              } else {
+                expiredCount++;
+                console.log(`⏰ IndexedDB: Cache expired for ${cacheKey}`);
+              }
+            }
+            resolve();
+          };
+          request.onerror = () => {
+            console.error(`❌ IndexedDB: Error reading ${cacheKey}:`, request.error);
+            reject(request.error);
+          };
+        })
+    )
+  );
+
+  db.close();
+  console.log(`📊 IndexedDB: Found ${foundCount} valid entries, ${expiredCount} expired, ${cacheKeys.length - foundCount - expiredCount} missing`);
+  return results;
+}
+
+// Clear expired oracle tags
+export async function clearExpiredOracleTags(): Promise<number> {
+  const db = await openDB();
+  const transaction = db.transaction([ORACLE_TAGS_STORE], 'readwrite');
+  const store = transaction.objectStore(ORACLE_TAGS_STORE);
+  const index = store.index('_cachedAt');
+
+  const cutoffTime = Date.now() - ORACLE_TAGS_CACHE_DURATION_MS;
+  const range = IDBKeyRange.upperBound(cutoffTime);
+
+  let deletedCount = 0;
+
+  await new Promise<void>((resolve, reject) => {
+    const request = index.openCursor(range);
+
+    request.onsuccess = () => {
+      const cursor = request.result;
+      if (cursor) {
+        cursor.delete();
+        deletedCount++;
+        cursor.continue();
+      } else {
+        resolve();
+      }
+    };
+
+    request.onerror = () => reject(request.error);
+  });
+
+  db.close();
+  return deletedCount;
 }

@@ -222,6 +222,9 @@ describe('Scryfall Hooks', () => {
         expiredCards: 20,
         oldestCard: Date.now() - 1000000,
         newestCard: Date.now(),
+        totalOracleTags: 50,
+        validOracleTags: 40,
+        expiredOracleTags: 10,
       };
 
       vi.mocked(getCacheStats).mockResolvedValueOnce(mockStats);

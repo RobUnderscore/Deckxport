@@ -4,7 +4,7 @@ import type { Card as ScryfallCard } from '@/types/scryfall';
 import type { CardAggregate, DeckImportProgress, DeckImportResult } from '@/types/cardAggregate';
 import { fetchMoxfieldDeck } from './moxfield';
 import { fetchCardCollectionBatched, cardNamesToIdentifiers } from './scryfall';
-import { fetchCardTags, extractOracleTags } from './scryfallTagger';
+import { fetchOracleTagsForCardsWithTagger } from './oracleTags';
 
 // Note: Rate limiting is now handled by the backend R2 cache proxy
 
@@ -235,59 +235,78 @@ export async function aggregateDeckData(
       });
     }
     
-    // === Stage 3: Fetch Tagger tags (one at a time) ===
+    // === Stage 3: Fetch Tagger tags (with caching) ===
     updateProgress({ 
       stage: 'tagger',
       cardsProcessed: 0 
     });
     
-    for (let i = 0; i < aggregates.length; i++) {
-      const aggregate = aggregates[i];
-      updateProgress({ 
-        currentCard: aggregate.name,
-        cardsProcessed: i 
+    // Filter cards that have set and collector number
+    const cardsForTagger = aggregates.filter(a => a.set && a.collectorNumber);
+    const cardsWithoutSetInfo = aggregates.filter(a => !a.set || !a.collectorNumber);
+    
+    // Mark cards without set info as errors
+    cardsWithoutSetInfo.forEach(aggregate => {
+      aggregate.taggerFetched = true;
+      aggregate.taggerError = 'Missing set or collector number';
+      errors.push({
+        cardName: aggregate.name,
+        stage: 'tagger',
+        error: 'Missing set or collector number',
       });
-      
-      // Skip if we don't have set/collector number
-      if (!aggregate.set || !aggregate.collectorNumber) {
-        aggregate.taggerFetched = true;
-        aggregate.taggerError = 'Missing set or collector number';
-        errors.push({
-          cardName: aggregate.name,
-          stage: 'tagger',
-          error: 'Missing set or collector number',
-        });
-        continue;
-      }
-      
+    });
+    
+    if (cardsForTagger.length > 0) {
       try {
-        // Fetch tags from Tagger API
-        const taggerCard = await fetchCardTags(
-          aggregate.set,
-          aggregate.collectorNumber
+        // Fetch oracle tags in batch with caching
+        const result = await fetchOracleTagsForCardsWithTagger(
+          cardsForTagger.map(a => a._scryfallData!).filter(Boolean),
+          (current, total) => {
+            updateProgress({ 
+              cardsProcessed: current,
+              currentCard: cardsForTagger[Math.min(current - 1, cardsForTagger.length - 1)]?.name
+            });
+          },
+          true // useCache
         );
         
-        if (taggerCard) {
-          aggregate.oracleTags = extractOracleTags(taggerCard);
-          aggregate.taggerFetched = true;
-        } else {
-          aggregate.taggerFetched = true;
-          aggregate.taggerError = 'Not found in Tagger database';
+        // Apply the results to aggregates
+        cardsForTagger.forEach(aggregate => {
+          const tags = result.tags.get(aggregate.name);
+          if (tags) {
+            aggregate.oracleTags = tags;
+            aggregate.taggerFetched = true;
+          } else {
+            aggregate.taggerFetched = true;
+            aggregate.taggerError = 'Not found in Tagger database';
+          }
+        });
+        
+        // Add any errors from the batch operation
+        if (result.hasErrors) {
+          result.errors.forEach(error => {
+            errors.push({
+              cardName: 'Batch oracle tags',
+              stage: 'tagger',
+              error,
+            });
+          });
         }
       } catch (error) {
-        aggregate.taggerFetched = true;
-        aggregate.taggerError = error instanceof Error ? error.message : 'Failed to fetch tags';
+        // If batch fails, mark all as errored
+        cardsForTagger.forEach(aggregate => {
+          aggregate.taggerFetched = true;
+          aggregate.taggerError = error instanceof Error ? error.message : 'Failed to fetch tags';
+        });
         errors.push({
-          cardName: aggregate.name,
+          cardName: 'Batch oracle tags',
           stage: 'tagger',
-          error: aggregate.taggerError,
+          error: error instanceof Error ? error.message : 'Failed to fetch oracle tags',
         });
       }
-      
-      // Rate limiting is now handled by the backend
-      
-      updateProgress({ cardsProcessed: i + 1 });
     }
+    
+    updateProgress({ cardsProcessed: aggregates.length });
     
     // === Complete ===
     updateProgress({ 

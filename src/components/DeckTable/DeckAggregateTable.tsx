@@ -39,6 +39,7 @@ import { ChevronDown, Download, Settings2, ArrowUpDown, ArrowUp, ArrowDown, Tag,
 import type { CardAggregate } from "@/types/cardAggregate";
 import { ManaSymbols } from "@/utils/manaSymbols";
 import { CSVExportDialog } from "./CSVExportAggregateDialog";
+import { CardPreview } from "@/components/ui/card-preview";
 import { 
   loadColumnVisibility, 
   saveColumnVisibility, 
@@ -168,15 +169,20 @@ export function DeckAggregateTable({ cards, deckName = "Deck" }: DeckAggregateTa
         const card = row.original;
         const imageUrl = card.imageUris?.small;
         return (
-          <div className="overflow-hidden rounded w-12 h-16">
-            {imageUrl && (
-              <img
-                src={imageUrl}
-                alt={card.name}
-                className="w-full h-full object-cover"
-              />
-            )}
-          </div>
+          <CardPreview
+            imageUrl={imageUrl}
+            cardName={card.name}
+          >
+            <div className="overflow-hidden rounded w-12 h-16">
+              {imageUrl && (
+                <img
+                  src={imageUrl}
+                  alt={card.name}
+                  className="w-full h-full object-cover"
+                />
+              )}
+            </div>
+          </CardPreview>
         );
       },
     },
@@ -198,9 +204,14 @@ export function DeckAggregateTable({ cards, deckName = "Deck" }: DeckAggregateTa
       cell: ({ row }) => {
         const card = row.original;
         return (
-          <div className="font-medium text-white text-sm">
-            {card.name}
-          </div>
+          <CardPreview
+            imageUrl={card.imageUris?.normal || card.imageUris?.large || card.imageUris?.small}
+            cardName={card.name}
+          >
+            <div className="font-medium text-white text-sm">
+              {card.name}
+            </div>
+          </CardPreview>
         );
       },
     },

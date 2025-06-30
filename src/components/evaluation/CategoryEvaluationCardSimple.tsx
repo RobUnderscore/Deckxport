@@ -2,13 +2,14 @@ import { cn } from "@/lib/utils";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { useState } from "react";
 import type { LucideIcon } from "lucide-react";
+import { CardPreview } from "@/components/ui/card-preview";
 
 interface CategoryEvaluationCardProps {
   title: string;
   icon: LucideIcon;
   rating: number; // 0-10
   count: number;
-  cards: Array<{ name: string; quantity: number }>;
+  cards: Array<{ name: string; quantity: number; imageUrl?: string }>;
   description: string;
   accentColor?: 'emerald' | 'blue' | 'purple' | 'red' | 'orange' | 'pink';
 }
@@ -86,9 +87,28 @@ export function CategoryEvaluationCard({
           {isExpanded && (
             <div className="mt-2 space-y-1">
               {cards.map((card, idx) => (
-                <div key={idx} className="flex justify-between text-sm">
-                  <span>{card.name}</span>
-                  <span className="text-muted-foreground">×{card.quantity}</span>
+                <div key={idx} className="flex items-center gap-2 p-1 hover:bg-accent/50 rounded">
+                  {card.imageUrl && (
+                    <CardPreview 
+                      imageUrl={card.imageUrl} 
+                      cardName={card.name}
+                    >
+                      <img 
+                        src={card.imageUrl} 
+                        alt={card.name}
+                        className="w-10 h-14 object-cover rounded"
+                      />
+                    </CardPreview>
+                  )}
+                  <div className="flex-1 flex justify-between items-center">
+                    <CardPreview 
+                      imageUrl={card.imageUrl} 
+                      cardName={card.name}
+                    >
+                      <span className="text-sm hover:text-primary transition-colors">{card.name}</span>
+                    </CardPreview>
+                    <span className="text-sm text-muted-foreground">×{card.quantity}</span>
+                  </div>
                 </div>
               ))}
             </div>

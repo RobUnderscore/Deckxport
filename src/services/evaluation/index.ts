@@ -6,6 +6,7 @@ export interface CategoryEvaluation {
   cards: Array<{
     name: string;
     quantity: number;
+    imageUrl?: string;
   }>;
 }
 
@@ -63,7 +64,11 @@ export function evaluateRamp(cards: CardAggregate[]): CategoryEvaluation {
   return {
     rating,
     count,
-    cards: rampCards.map(c => ({ name: c.name, quantity: c.quantity })),
+    cards: rampCards.map(c => ({ 
+      name: c.name, 
+      quantity: c.quantity,
+      imageUrl: c.imageUris?.small
+    })),
   };
 }
 
@@ -102,7 +107,11 @@ export function evaluateCardAdvantage(cards: CardAggregate[]): CategoryEvaluatio
   return {
     rating,
     count,
-    cards: drawCards.map(c => ({ name: c.name, quantity: c.quantity })),
+    cards: drawCards.map(c => ({ 
+      name: c.name, 
+      quantity: c.quantity,
+      imageUrl: c.imageUris?.small
+    })),
   };
 }
 
@@ -144,7 +153,11 @@ export function evaluateInteraction(cards: CardAggregate[]): CategoryEvaluation 
   return {
     rating,
     count,
-    cards: interactionCards.map(c => ({ name: c.name, quantity: c.quantity })),
+    cards: interactionCards.map(c => ({ 
+      name: c.name, 
+      quantity: c.quantity,
+      imageUrl: c.imageUris?.small
+    })),
   };
 }
 
@@ -195,7 +208,11 @@ export function evaluateWinConditions(cards: CardAggregate[]): CategoryEvaluatio
   return {
     rating,
     count,
-    cards: wincons.map(c => ({ name: c.name, quantity: c.quantity })),
+    cards: wincons.map(c => ({ 
+      name: c.name, 
+      quantity: c.quantity,
+      imageUrl: c.imageUris?.small
+    })),
   };
 }
 
@@ -240,7 +257,11 @@ export function evaluateTargetedRemoval(cards: CardAggregate[]): CategoryEvaluat
   return {
     rating,
     count,
-    cards: removal.map(c => ({ name: c.name, quantity: c.quantity })),
+    cards: removal.map(c => ({ 
+      name: c.name, 
+      quantity: c.quantity,
+      imageUrl: c.imageUris?.small
+    })),
   };
 }
 
@@ -279,6 +300,10 @@ export function evaluateBoardWipes(cards: CardAggregate[]): CategoryEvaluation {
   return {
     rating,
     count,
-    cards: wipes.map(c => ({ name: c.name, quantity: c.quantity })),
+    cards: wipes.map(c => ({ 
+      name: c.name, 
+      quantity: c.quantity,
+      imageUrl: c.imageUris?.small
+    })),
   };
 }

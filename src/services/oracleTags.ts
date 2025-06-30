@@ -17,6 +17,12 @@
 
 import { fetchCardTags, extractOracleTags, getCardIdentifiers, TaggerAuthOptions } from './scryfallTagger';
 import type { Card } from '@/types/scryfall';
+import { getCachedOracleTags, cacheOracleTags, getCachedOracleTagsForCards } from '@/utils/indexeddb';
+
+// Helper to generate cache key from card
+function getCacheKey(card: Card): string {
+  return `${card.set}_${card.collector_number}`;
+}
 
 // Enrich cards with oracle tags from cache
 export function enrichCardsWithOracleTags<T extends { name: string; oracle_tags?: string[] }>(
@@ -77,6 +83,8 @@ export async function fetchOracleTagsForCardsWithTagger(
   useCache: boolean = true,
   authOptions?: TaggerAuthOptions
 ): Promise<OracleTagResult> {
+  console.log(`🚀 fetchOracleTagsForCardsWithTagger called with ${cards.length} cards, useCache=${useCache}`);
+  
   const results = new Map<string, string[]>();
   const errors: string[] = [];
   let consecutiveErrors = 0;
@@ -86,60 +94,129 @@ export async function fetchOracleTagsForCardsWithTagger(
     onProgress(0, cards.length);
   }
   
+  // First, check IndexedDB cache for all cards if cache is enabled
+  let cachedFromIndexedDB = new Map<string, string[]>();
+  const cardCacheKeyMap = new Map<string, string>(); // Maps cache keys to card names
+  
+  if (useCache) {
+    try {
+      // Log sample card data for debugging
+      if (cards.length > 0) {
+        const sampleCard = cards[0];
+        console.log(`📋 Sample card data: name="${sampleCard.name}", set="${sampleCard.set}", collector_number="${sampleCard.collector_number}"`);
+      }
+      
+      const cacheKeys = cards.map(c => {
+        const key = getCacheKey(c);
+        cardCacheKeyMap.set(key, c.name);
+        return key;
+      });
+      cachedFromIndexedDB = await getCachedOracleTagsForCards(cacheKeys);
+      console.log(`🔍 Checked IndexedDB cache for ${cacheKeys.length} cards, found ${cachedFromIndexedDB.size} cached entries`);
+      
+      // Log first few cache keys for debugging
+      if (cacheKeys.length > 0 && cachedFromIndexedDB.size === 0) {
+        console.log(`📝 Sample cache keys: ${cacheKeys.slice(0, 3).join(', ')}...`);
+      }
+    } catch (error) {
+      console.error('❗ Error checking IndexedDB cache:', error);
+    }
+  }
+  
   for (let i = 0; i < cards.length; i++) {
     const card = cards[i];
+    const cacheKey = getCacheKey(card);
     
-    // Check cache first
-    const cached = useCache ? dynamicOracleTagCache.get(card.name) : undefined;
-    if (cached !== undefined) {
-      results.set(card.name, cached);
-    } else if (!shouldStop) {
-      try {
-        // Get set and collector number
-        const identifiers = getCardIdentifiers(card);
-        
-        // Fetch from Tagger API
-        const taggerCard = await fetchCardTags(identifiers.set, identifiers.number, false, authOptions);
-        
-        if (taggerCard) {
-          const oracleTags = extractOracleTags(taggerCard);
-          results.set(card.name, oracleTags);
-          
-          if (useCache) {
-            dynamicOracleTagCache.set(card.name, oracleTags);
-          }
-          
-          consecutiveErrors = 0;
-        } else {
-          // Card not found or API error
-          results.set(card.name, []);
-          if (useCache) {
-            dynamicOracleTagCache.set(card.name, []);
-          }
-        }
-        
-        // Rate limiting is now handled by the backend
-      } catch (error) {
-        consecutiveErrors++;
-        const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-        
-        if (!errors.includes(errorMsg)) {
-          errors.push(errorMsg);
-        }
-        
-        console.warn(`Tagger API error for ${card.name}:`, errorMsg);
-        
-        if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
-          shouldStop = true;
-          errors.push('Stopped fetching due to repeated errors.');
-          break;
-        }
-      }
+    // Check IndexedDB cache first
+    const indexedDBCached = cachedFromIndexedDB.get(cacheKey);
+    if (indexedDBCached !== undefined) {
+      results.set(card.name, indexedDBCached);
+      console.log(`📦 Oracle tags for "${card.name}" (${cacheKey}) found in IndexedDB cache (${indexedDBCached.length} tags)`);
+      
+      // Add a small delay for visual progress even for cached cards
+      await new Promise(resolve => setTimeout(resolve, 20));
     } else {
-      // Stopped due to errors
-      results.set(card.name, []);
-      if (useCache) {
-        dynamicOracleTagCache.set(card.name, []);
+      // Check in-memory cache
+      const cached = useCache ? dynamicOracleTagCache.get(card.name) : undefined;
+      if (cached !== undefined) {
+        results.set(card.name, cached);
+        console.log(`💾 Oracle tags for "${card.name}" found in memory cache (${cached.length} tags)`);
+        
+        // Save to IndexedDB for next time
+        if (useCache) {
+          await cacheOracleTags(cacheKey, card.name, cached);
+        }
+        
+        // Small delay for visual progress
+        await new Promise(resolve => setTimeout(resolve, 20));
+      } else if (!shouldStop) {
+        try {
+          // Get set and collector number
+          const identifiers = getCardIdentifiers(card);
+          console.log(`🔎 Cache miss for "${card.name}" - fetching from API`);
+          
+          // Fetch from Tagger API
+          const taggerCard = await fetchCardTags(identifiers.set, identifiers.number, false, authOptions);
+          
+          if (taggerCard) {
+            const oracleTags = extractOracleTags(taggerCard);
+            results.set(card.name, oracleTags);
+            console.log(`🌐 Oracle tags for "${card.name}" fetched from Tagger API (${oracleTags.length} tags)`);
+            
+            if (useCache) {
+              // Save to both caches
+              dynamicOracleTagCache.set(card.name, oracleTags);
+              console.log(`💾 Attempting to cache oracle tags for "${card.name}" (${cacheKey}) - ${oracleTags.length} tags`);
+              try {
+                await cacheOracleTags(cacheKey, card.name, oracleTags);
+                console.log(`✅ Successfully cached oracle tags for "${card.name}" (${cacheKey})`);
+              } catch (error) {
+                console.error(`❌ Failed to cache oracle tags for "${card.name}" (${cacheKey}):`, error);
+              }
+            }
+            
+            consecutiveErrors = 0;
+          } else {
+            // Card not found or API error
+            results.set(card.name, []);
+            console.log(`❌ Oracle tags for "${card.name}" not found in Tagger API`);
+            if (useCache) {
+              // Save empty result to both caches
+              dynamicOracleTagCache.set(card.name, []);
+              console.log(`💾 Attempting to cache empty result for "${card.name}" (${cacheKey})`);
+              try {
+                await cacheOracleTags(cacheKey, card.name, []);
+                console.log(`✅ Successfully cached empty result for "${card.name}" (${cacheKey})`);
+              } catch (error) {
+                console.error(`❌ Failed to cache empty result for "${card.name}" (${cacheKey}):`, error);
+              }
+            }
+          }
+          
+          // Rate limiting is now handled by the backend
+        } catch (error) {
+          consecutiveErrors++;
+          const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+          
+          if (!errors.includes(errorMsg)) {
+            errors.push(errorMsg);
+          }
+          
+          console.warn(`Tagger API error for ${card.name}:`, errorMsg);
+          
+          if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
+            shouldStop = true;
+            errors.push('Stopped fetching due to repeated errors.');
+            break;
+          }
+        }
+      } else {
+        // Stopped due to errors
+        results.set(card.name, []);
+        if (useCache) {
+          // Don't cache error results in IndexedDB
+          dynamicOracleTagCache.set(card.name, []);
+        }
       }
     }
     
