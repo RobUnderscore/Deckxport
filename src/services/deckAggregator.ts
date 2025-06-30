@@ -6,10 +6,7 @@ import { fetchMoxfieldDeck } from './moxfield';
 import { fetchCardCollectionBatched, cardNamesToIdentifiers } from './scryfall';
 import { fetchCardTags, extractOracleTags } from './scryfallTagger';
 
-/**
- * Delay between Tagger API calls (250ms as requested)
- */
-const TAGGER_DELAY_MS = 250;
+// Note: Rate limiting is now handled by the backend R2 cache proxy
 
 /**
  * Convert Moxfield card to initial aggregate
@@ -287,10 +284,7 @@ export async function aggregateDeckData(
         });
       }
       
-      // Wait before next request (except for the last card)
-      if (i < aggregates.length - 1) {
-        await new Promise(resolve => setTimeout(resolve, TAGGER_DELAY_MS));
-      }
+      // Rate limiting is now handled by the backend
       
       updateProgress({ cardsProcessed: i + 1 });
     }

@@ -63,9 +63,9 @@ export interface OracleTagResult {
   hasErrors: boolean;
 }
 
-// Rate limiting constants
-const RATE_LIMIT_DELAY = 150; // 150ms between requests (Scryfall recommends 50-100ms)
+// Error handling constants
 const MAX_CONSECUTIVE_ERRORS = 3; // Stop after 3 consecutive errors
+// Note: Rate limiting is now handled by the backend R2 cache proxy
 
 /**
  * Fetch oracle tags for cards using the Tagger GraphQL API
@@ -118,8 +118,7 @@ export async function fetchOracleTagsForCardsWithTagger(
           }
         }
         
-        // Rate limit
-        await new Promise(resolve => setTimeout(resolve, RATE_LIMIT_DELAY));
+        // Rate limiting is now handled by the backend
       } catch (error) {
         consecutiveErrors++;
         const errorMsg = error instanceof Error ? error.message : 'Unknown error';

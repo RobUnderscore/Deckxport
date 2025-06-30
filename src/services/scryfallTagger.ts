@@ -24,14 +24,8 @@ const TAGGER_GRAPHQL_ENDPOINT = (() => {
     return TAGGER_BASE;
   }
   
-  // Browser environment
-  if (import.meta.env.DEV) {
-    // Development: Use Vite proxy
-    return '/api/tagger/graphql';
-  } else {
-    // Production: Use Vercel serverless function
-    return '/api/tagger-proxy';
-  }
+  // Browser environment - always use deployed Vercel function for caching
+  return 'https://deckxport.vercel.app/api/tagger-proxy';
 })();
 
 // Default public credentials that seem to work for read-only access
@@ -248,16 +242,8 @@ export async function fetchCardTags(
       'Accept-Language': 'en-US,en;q=0.5',
     };
 
-    // Only add auth headers if not using the dev proxy
-    if (!(typeof window !== 'undefined' && import.meta.env.DEV)) {
-      Object.assign(headers, {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:140.0) Gecko/20100101 Firefox/140.0',
-        'Origin': 'https://tagger.scryfall.com',
-        'Referer': `https://tagger.scryfall.com/card/${set}/${number}`,
-        'Cookie': cookie,
-        'X-CSRF-Token': csrfToken,
-      });
-    }
+    // Auth headers are handled by the serverless function
+    // No need to add them here since we're always proxying through /api/tagger-proxy
 
     console.log(`Fetching card tags for ${set}/${number} from Tagger API`);
 

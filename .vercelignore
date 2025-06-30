@@ -1,0 +1,21 @@
+# Only deploy the API function
+src/
+public/
+coverage/
+dist/
+*.md
+*.config.*
+tsconfig*.json
+vite.config.ts
+vitest.config.ts
+tailwind.config.js
+postcss.config.js
+components.json
+CLAUDE.md
+README.md
+USAGE.md
+CORS-SOLUTION.md
+ORACLE_TAGS_EXPLORATION.md
+package.json
+package-lock.json
+node_modules/
