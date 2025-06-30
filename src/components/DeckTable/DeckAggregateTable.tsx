@@ -38,6 +38,7 @@ import {
 import { ChevronDown, Download, Settings2, ArrowUpDown, ArrowUp, ArrowDown, Tag, RotateCcw } from "lucide-react";
 import type { CardAggregate } from "@/types/cardAggregate";
 import { ManaSymbols } from "@/utils/manaSymbols";
+import { parseManaSymbols } from "@/utils/parseManaSymbols";
 import { CSVExportDialog } from "./CSVExportAggregateDialog";
 import { CardPreview } from "@/components/ui/card-preview";
 import { DualFacedCardPreview, DualFacedIndicator, getCombinedOracleText, getDualFacedDisplayImage } from "@/components/ui/dual-faced-card";
@@ -508,12 +509,12 @@ export function DeckAggregateTable({ cards, deckName = "Deck" }: DeckAggregateTa
         
         return (
           <div className="group relative">
-            <div className="text-xs text-gray-400 max-w-xs truncate">
-              {oracleText}
+            <div className="text-xs text-gray-400 max-w-xs truncate oracle-text-mana">
+              {parseManaSymbols(oracleText)}
             </div>
             <div className="absolute z-10 invisible group-hover:visible bg-gray-900 border border-gray-700 rounded-lg p-3 shadow-xl -top-2 left-0 w-[400px] max-h-[300px] overflow-y-auto">
-              <div className="text-sm text-gray-100 whitespace-pre-line">
-                {oracleText}
+              <div className="text-sm text-gray-100 whitespace-pre-line oracle-text-mana">
+                {parseManaSymbols(oracleText)}
               </div>
             </div>
           </div>

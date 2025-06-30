@@ -240,12 +240,12 @@ export function DeckDataTable({ data }: DeckDataTableProps) {
         return (
           <div className="group relative">
             <div className="text-sm text-gray-300 oracle-text-mana whitespace-pre-line min-w-[200px] max-w-[300px]">
-              {parseManaSymbols(displayText, 'ms')}
+              {parseManaSymbols(displayText)}
             </div>
             {truncated && (
               <div className="absolute z-10 invisible group-hover:visible bg-gray-900 border border-gray-700 rounded-lg p-3 shadow-xl -top-2 left-0 w-[400px] max-h-[300px] overflow-y-auto">
                 <div className="text-sm text-gray-100 whitespace-pre-line oracle-text-mana">
-                  {parseManaSymbols(text, 'ms')}
+                  {parseManaSymbols(text)}
                 </div>
               </div>
             )}

@@ -21,6 +21,8 @@ async function testCardByName(name: string) {
       console.log(`   Set: ${card.set} (${card.set_name})`);
       console.log(`   Collector Number: ${card.collector_number}`);
       console.log(`   Layout: ${card.layout}`);
+      console.log(`   Oracle Text: ${card.oracle_text || 'N/A'}`);
+      console.log(`   Mana Cost: ${card.mana_cost || 'N/A'}`);
       if (card.card_faces) {
         console.log(`   Faces: ${card.card_faces.map(f => f.name).join(' // ')}`);
       }

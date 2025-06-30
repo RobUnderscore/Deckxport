@@ -67,11 +67,24 @@ export const MANA_SYMBOL_MAP: Record<string, string> = {
   'Q': 'ms-untap',
   'E': 'ms-e', // Energy
   'S': 'ms-s', // Snow
+  '∞': 'ms-infinity', // Infinity
+  'HALF': 'ms-half', // Half mana
+  'HW': 'ms-hw', // Half white
+  'HU': 'ms-hu', // Half blue
+  'HB': 'ms-hb', // Half black
+  'HR': 'ms-hr', // Half red
+  'HG': 'ms-hg', // Half green
   
   // Additional costs
   'CHAOS': 'ms-chaos',
   'A': 'ms-acorn',
   'TK': 'ms-tk', // Ticket
+  'P': 'ms-p', // Phyrexian generic
+  'PW': 'ms-pw', // Phyrexian white
+  'PU': 'ms-pu', // Phyrexian blue
+  'PB': 'ms-pb', // Phyrexian black
+  'PR': 'ms-pr', // Phyrexian red
+  'PG': 'ms-pg' // Phyrexian green
 };
 
 /**
@@ -99,7 +112,8 @@ export function parseManaSymbols(manaCost: string | undefined, size: string = 'm
               const match = part.match(/^\{([^}]+)\}$/);
               if (match) {
                 const symbol = match[1];
-                const cssClass = MANA_SYMBOL_MAP[symbol];
+                // Try uppercase first, then lowercase for case-insensitive matching
+                const cssClass = MANA_SYMBOL_MAP[symbol.toUpperCase()] || MANA_SYMBOL_MAP[symbol];
                 
                 if (cssClass) {
                   return (
