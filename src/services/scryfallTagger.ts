@@ -225,13 +225,8 @@ export interface TaggerAuthOptions {
 export async function fetchCardTags(
   set: string,
   number: string,
-  back: boolean = false,
-  authOptions?: TaggerAuthOptions
+  back: boolean = false
 ): Promise<TaggerCard | null> {
-  // Use provided credentials or fall back to defaults
-  const cookie = authOptions?.cookie || DEFAULT_SESSION_COOKIE;
-  const csrfToken = authOptions?.csrfToken || DEFAULT_CSRF_TOKEN;
-
   // In production browser environment, we'll use the Vercel proxy
   // No need to check for CORS issues since we have a proxy set up
 

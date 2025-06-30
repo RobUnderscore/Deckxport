@@ -31,7 +31,6 @@ export function evaluateSynergy(cards: CardAggregate[]): CategoryEvaluation {
   
   // Higher rating for decks with multiple cards sharing synergies
   const sharedSynergies = Array.from(synergyTypes.values()).filter(count => count > 1).length;
-  const uniqueSynergies = synergyTypes.size;
   
   const count = synergyCards.reduce((sum, card) => sum + card.quantity, 0);
   const rating = Math.min(10, Math.round(

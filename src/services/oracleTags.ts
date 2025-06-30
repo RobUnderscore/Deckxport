@@ -15,7 +15,7 @@
  * We use 150ms to be safe and stop on the first 404 error.
  */
 
-import { fetchCardTags, extractOracleTags, getCardIdentifiers, TaggerAuthOptions } from './scryfallTagger';
+import { fetchCardTags, extractOracleTags, getCardIdentifiers } from './scryfallTagger';
 import type { Card } from '@/types/scryfall';
 import { cacheOracleTags, getCachedOracleTagsForCards } from '@/utils/indexeddb';
 
@@ -80,8 +80,7 @@ const MAX_CONSECUTIVE_ERRORS = 3; // Stop after 3 consecutive errors
 export async function fetchOracleTagsForCardsWithTagger(
   cards: Array<Card>,
   onProgress?: (current: number, total: number) => void,
-  useCache: boolean = true,
-  authOptions?: TaggerAuthOptions
+  useCache: boolean = true
 ): Promise<OracleTagResult> {
   console.log(`🚀 fetchOracleTagsForCardsWithTagger called with ${cards.length} cards, useCache=${useCache}`);
   
@@ -156,7 +155,7 @@ export async function fetchOracleTagsForCardsWithTagger(
           console.log(`🔎 Cache miss for "${card.name}" - fetching from API`);
           
           // Fetch from Tagger API
-          const taggerCard = await fetchCardTags(identifiers.set, identifiers.number, false, authOptions);
+          const taggerCard = await fetchCardTags(identifiers.set, identifiers.number, false);
           
           if (taggerCard) {
             const oracleTags = extractOracleTags(taggerCard);
