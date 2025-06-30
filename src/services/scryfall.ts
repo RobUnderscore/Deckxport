@@ -178,6 +178,18 @@ export function cardNamesToIdentifiers(cardNames: string[]): CardIdentifier[] {
   return cardNames.map((name) => ({ name }));
 }
 
+// Helper to create set/collector number identifiers
+export function setNumberToIdentifier(set: string, collectorNumber: string): CardIdentifier {
+  return { set, collector_number: collectorNumber };
+}
+
+// Helper to convert multiple set/numbers to identifiers
+export function setNumbersToIdentifiers(
+  cards: Array<{ set: string; collectorNumber: string }>
+): CardIdentifier[] {
+  return cards.map(({ set, collectorNumber }) => ({ set, collector_number: collectorNumber }));
+}
+
 // Helper to get the most relevant bulk data type
 export async function getDefaultBulkData(): Promise<BulkData | null> {
   const bulkDataList = await fetchBulkDataInfo();
@@ -227,5 +239,30 @@ export async function fetchCard(id: string): Promise<Card> {
   } catch (error) {
     if (error instanceof ScryfallApiError) throw error;
     throw new ScryfallApiError(`Network error fetching card: ${error}`);
+  }
+}
+
+// Fetch a single card by set and collector number
+export async function fetchCardBySetAndNumber(
+  set: string,
+  collectorNumber: string
+): Promise<Card> {
+  try {
+    const response = await rateLimitedFetch(
+      `${SCRYFALL_API_BASE}/cards/${set}/${collectorNumber}`
+    );
+
+    if (!response.ok) {
+      throw new ScryfallApiError(
+        `Failed to fetch card ${set}/${collectorNumber}`,
+        response.status,
+        await response.text()
+      );
+    }
+
+    return await response.json();
+  } catch (error) {
+    if (error instanceof ScryfallApiError) throw error;
+    throw new ScryfallApiError(`Network error fetching card ${set}/${collectorNumber}: ${error}`);
   }
 }

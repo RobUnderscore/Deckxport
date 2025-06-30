@@ -9,6 +9,8 @@ import {
   cardNamesToIdentifiers,
   searchCards,
   fetchCard,
+  fetchCardBySetAndNumber,
+  setNumbersToIdentifiers,
 } from '@/services/scryfall';
 import {
   cacheCard,
@@ -30,6 +32,7 @@ export const scryfallKeys = {
   all: ['scryfall'] as const,
   cards: () => [...scryfallKeys.all, 'cards'] as const,
   card: (id: string) => [...scryfallKeys.cards(), id] as const,
+  cardBySetNumber: (set: string, number: string) => [...scryfallKeys.cards(), 'set', set, number] as const,
   collection: (identifiers: CardIdentifier[]) =>
     [...scryfallKeys.cards(), 'collection', identifiers] as const,
   bulkData: () => [...scryfallKeys.all, 'bulk-data'] as const,
@@ -297,6 +300,54 @@ export function useCardsByNames(
   }
 ) {
   const identifiers = cardNamesToIdentifiers(cardNames);
+  return useCardCollection(identifiers, options);
+}
+
+// Hook to fetch a single card by set and collector number
+export function useCardBySetNumber(
+  set: string | undefined,
+  collectorNumber: string | undefined,
+  options?: QueryOptions<Card>
+) {
+  return useQuery({
+    queryKey: scryfallKeys.cardBySetNumber(set!, collectorNumber!),
+    queryFn: async () => {
+      // Generate cache key similar to oracle tags
+      const cacheKey = `${set}_${collectorNumber}`;
+      
+      // Check IndexedDB cache first
+      const cached = await getCachedCard(cacheKey);
+      if (cached) {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { _cachedAt, ...card } = cached;
+        return card as Card;
+      }
+
+      // Fetch from API
+      const card = await fetchCardBySetAndNumber(set!, collectorNumber!);
+
+      // Cache the result
+      await cacheCard(card);
+
+      return card;
+    },
+    enabled: !!set && !!collectorNumber,
+    staleTime: 24 * 60 * 60 * 1000, // 24 hours
+    ...options,
+  });
+}
+
+// Hook to fetch cards by set/collector number pairs
+export function useCardsBySetNumbers(
+  cards: Array<{ set: string; collectorNumber: string }>,
+  options?: QueryOptions<CollectionResponse> & { 
+    includeOracleTags?: boolean;
+    fetchDynamicOracleTags?: boolean;
+    onOracleTagProgress?: (current: number, total: number) => void;
+    useOracleTagCache?: boolean;
+  }
+) {
+  const identifiers = setNumbersToIdentifiers(cards);
   return useCardCollection(identifiers, options);
 }
 

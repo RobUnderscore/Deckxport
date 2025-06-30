@@ -1,6 +1,6 @@
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { CardPreview } from '../card-preview';
-import { vi } from 'vitest';
 
 describe('CardPreview', () => {
   it('renders children correctly', () => {
