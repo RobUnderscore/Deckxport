@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useDeckAggregate, extractDeckId } from '@/hooks/useDeckAggregate';
 import { DeckAggregateTable } from '@/components/DeckTable/DeckAggregateTable';
 import { CommanderDeckEvaluation } from '@/components/CommanderDeckEvaluationAggregate';
@@ -7,8 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, AlertCircle, Table2, Shield, Tag, Sparkles } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Loader2, AlertCircle, Table2, Shield, Tag } from 'lucide-react';
 import type { DeckImportProgress } from '@/types/cardAggregate';
 
 export default function DeckAggregateImport() {
@@ -75,20 +74,10 @@ export default function DeckAggregateImport() {
   return (
     <div className="container mx-auto p-6 max-w-7xl">
       <div className="mb-8">
-        <div className="flex items-start justify-between">
-          <div>
-            <h1 className="text-3xl font-bold mb-2">Deck Import & Analysis</h1>
-            <p className="text-muted-foreground">
-              Import a deck from Moxfield to analyze card data, oracle tags, and deck composition
-            </p>
-          </div>
-          <Link to="/evaluate">
-            <Button variant="outline" size="sm">
-              <Sparkles className="mr-2 h-4 w-4" />
-              Try Oracle Tag Evaluation
-            </Button>
-          </Link>
-        </div>
+        <h1 className="text-3xl font-bold mb-2">Deck Import & Analysis</h1>
+        <p className="text-muted-foreground">
+          Import a deck from Moxfield to analyze card data, oracle tags, and deck composition
+        </p>
       </div>
 
       {/* Import Form */}

@@ -10,7 +10,7 @@ import { RampEvaluator } from "./evaluators/RampEvaluator";
 import { PlaceholderEvaluator } from "./evaluators/PlaceholderEvaluator";
 
 export class DeckEvaluationService {
-  private evaluators: Map<string, CategoryEvaluator>;
+  private readonly evaluators: Map<string, CategoryEvaluator>;
   
   constructor() {
     this.evaluators = new Map();

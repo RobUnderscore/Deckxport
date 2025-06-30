@@ -17,7 +17,7 @@
 
 import { fetchCardTags, extractOracleTags, getCardIdentifiers, TaggerAuthOptions } from './scryfallTagger';
 import type { Card } from '@/types/scryfall';
-import { getCachedOracleTags, cacheOracleTags, getCachedOracleTagsForCards } from '@/utils/indexeddb';
+import { cacheOracleTags, getCachedOracleTagsForCards } from '@/utils/indexeddb';
 
 // Helper to generate cache key from card
 function getCacheKey(card: Card): string {

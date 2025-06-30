@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { fetchMoxfieldDeck } from '../services/moxfield.js';
-import type { MoxfieldCard } from '../types/moxfield.js';
+import type { MoxfieldCard } from '@/types';
 
 // Parse command line arguments
 const args = process.argv.slice(2);
